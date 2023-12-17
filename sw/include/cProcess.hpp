@@ -198,6 +198,8 @@ public:
 	 * @brief Return the number of completed RDMA acks
 	 * 
 	 */
+    uint32_t ibvCheckAcks();
+    int32_t ibvGetCompleted(int32_t &cpid);
 	uint32_t checkIbvAcks();
 	void clearIbvAcks();
 
@@ -205,6 +207,25 @@ public:
 	 * @brief Network dropper
 	 */
 	void netDrop(bool clr, bool dir, uint32_t packet_id);
+
+
+	/**
+	 * @brief TCP Open Connection
+	 */
+
+	bool tcpOpenCon(uint32_t ip, uint32_t port, uint32_t* session);
+	
+	/**
+	 * @brief TCP Open Port
+	 */
+	
+	bool tcpOpenPort(uint32_t port);
+
+	/**
+	 * @brief TCP Close Connection
+	 */
+
+	void tcpCloseCon(uint32_t session);
 
 	/**
 	 * @brief Debug

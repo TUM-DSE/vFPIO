@@ -6,6 +6,8 @@
 #include <string>
 #include <cstring>
 #include <atomic>
+#include <iostream>
+
 
 namespace fpga {
 
@@ -22,7 +24,7 @@ struct ibvQ {
     uint32_t rkey;
 
     // Buffer
-    uint64_t vaddr; 
+    void *vaddr; 
     uint32_t size;
     
     // Global ID
@@ -47,32 +49,24 @@ public:
 
     ibvQp() : id(curr_id++) {}
     inline uint32_t getId() { return id; }
+
+    void print() {
+        std::cout << "Queue Pair: "
+                  << "id: " << id << std::endl;
+        std::cout << "Local Queue: ";
+        local.print("local"); // Call the print function of ibvQ to print local queue variables
+        std::cout << "Remote Queue: ";
+        remote.print("remote"); // Call the print function of ibvQ to print remote queue variables
+    }
 };
 
 /**
  * SG lists
  */
 struct ibvSge {
-    union {
-        struct {
-            uint64_t local_offs;
-            uint64_t remote_offs;
-            uint32_t len;
-        } rdma;
-        struct {
-            uint64_t local_addr;
-            uint32_t len;
-        } send;
-        struct {
-            uint64_t params[immedLowParams];
-        } immed_low; // single cmd
-        struct {
-            uint64_t params[immedMedParams];
-        } immed_mid; // 2 cmd
-        struct {
-            uint64_t params[immedHighParams];
-        } immed_high; // 3 cmd
-    } type;
+    uint64_t local_offs;
+    uint64_t remote_offs;
+    uint32_t len;
 };
 
 /* RDMA flags */
@@ -95,7 +89,6 @@ struct ibvSendWr {
 
     int isRDMA() { return opcode == IBV_WR_RDMA_READ || opcode == IBV_WR_RDMA_WRITE; }
     int isSEND() { return opcode == IBV_WR_SEND; }
-    int isIMMED() { return opcode == IBV_WR_IMMED_LOW || opcode == IBV_WR_IMMED_MID || opcode == IBV_WR_IMMED_HIGH; }
 };
 
 /**

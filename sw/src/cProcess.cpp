@@ -94,10 +94,12 @@ cProcess::~cProcess() {
 	for(auto& it: mapped_upages) {
 		userUnmap(it);
 	}
+	mapped_upages.clear();
 
 	for(auto& it: mapped_pages) {
 		freeMem(it.first);
 	}
+	mapped_pages.clear();
 
 	munmapFpga();
 
@@ -223,7 +225,7 @@ void cProcess::userUnmap(void *vaddr) {
 		if(ioctl(fd, IOCTL_UNMAP_USER, &tmp)) 
 			throw std::runtime_error("ioctl_unmap_user() failed");
 
-		mapped_upages.erase(vaddr);
+	//	mapped_upages.erase(vaddr);
 	}	
 }
 
@@ -341,7 +343,7 @@ void cProcess::freeMem(void* vaddr) {
 			break;
 		}
 
-		mapped_pages.erase(vaddr);
+	//	mapped_pages.erase(vaddr);
 	}
 }
 
@@ -554,6 +556,50 @@ void cProcess::clearCompleted() {
 // ======-------------------------------------------------------------------------------
 
 /**
+ * @brief Check number of completed RDMA operations
+ * 
+ * @param cpid - Coyote operation struct
+ * @return uint32_t - number of completed operations
+ */
+uint32_t cProcess::ibvCheckAcks() {
+    if(fcnfg.en_wb) {
+        return wback[cpid + ((fcnfg.qsfp ? 3 : 2) * nCpidMax)];
+    } else {
+#ifdef EN_AVX
+        if(fcnfg.en_avx) 
+            return fcnfg.qsfp ? _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::STAT_DMA_REG) + cpid], 3) :
+                                _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::STAT_DMA_REG) + cpid], 2);
+        else
+#endif
+            return (fcnfg.qsfp ? (HIGH_32(cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::STAT_RDMA_REG) + cpid])) : 
+                                 ( LOW_32(cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::STAT_RDMA_REG) + cpid])));
+    }
+}
+
+/**
+ * @brief Check completion queue
+ * 
+ * @param cmplt_cpid - Coyote pid
+ * @return int32_t - ssn 
+ */
+int32_t cProcess::ibvGetCompleted(int32_t &cpid) {
+    uint64_t cmplt_meta;
+#ifdef EN_AVX
+    if(fcnfg.en_avx) 
+        cmplt_meta = _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::RDMA_CMPLT_REG)], 0);
+    else
+#endif
+        cmplt_meta = cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::RDMA_CMPLT_REG)];
+
+    if(cmplt_meta & 0x1) {
+        cpid = (cmplt_meta >> 16) & 0x3f;
+        return HIGH_32(cmplt_meta);
+    } else {
+        return -1;
+    }
+}
+
+/**
  * @brief Post an IB operation
  * 
  * @param qp - queue pair struct
@@ -563,10 +609,10 @@ void cProcess::ibvPostSend(ibvQp *qp, ibvSendWr *wr) {
     if(fcnfg.en_rdma) {
         if(qp->local.ip_addr == qp->remote.ip_addr) {
             for(int i = 0; i < wr->num_sge; i++) {
-                void *local_addr = (void*)(qp->local.vaddr + wr->sg_list[i].type.rdma.local_offs);
-                void *remote_addr = (void*)(qp->remote.vaddr + wr->sg_list[i].type.rdma.remote_offs);
+                void *local_addr = (void*)((uint64_t)qp->local.vaddr + wr->sg_list[i].local_offs);
+                void *remote_addr = (void*)((uint64_t)qp->remote.vaddr + wr->sg_list[i].remote_offs);
 
-                memcpy(remote_addr, local_addr, wr->sg_list[i].type.rdma.len);
+                memcpy(remote_addr, local_addr, wr->sg_list[i].len);
             }
         } else {
             uint64_t offs_0 = (
@@ -580,42 +626,14 @@ void cProcess::ibvPostSend(ibvQp *qp, ibvSendWr *wr) {
 				((static_cast<uint64_t>(wr->send_flags.clr) & 0x1) << RDMA_CLR_OFFS)); 
 				
             uint64_t offs_1, offs_2, offs_3;
-            
-            if(wr->isRDMA()) { // RDMA
-                for(int i = 0; i < wr->num_sge; i++) {
-					offs_1 = static_cast<uint64_t>(qp->local.vaddr + wr->sg_list[i].type.rdma.local_offs); 
-					offs_2 = static_cast<uint64_t>(qp->remote.vaddr + wr->sg_list[i].type.rdma.remote_offs); 
-					offs_3 = static_cast<uint64_t>(wr->sg_list[i].type.rdma.len);
 
-                    postCmd(offs_3, offs_2, offs_1, offs_0);
-                }
-            } else if(wr->isSEND()) { // SEND
-                for(int i = 0; i < wr->num_sge; i++) {
-					offs_1 = static_cast<uint64_t>(wr->sg_list[i].type.send.local_addr);
-					offs_2 = static_cast<uint64_t>(wr->sg_list[i].type.send.len);
-					offs_3 = 0;
+            for(int i = 0; i < wr->num_sge; i++) {
+                offs_1 = static_cast<uint64_t>((uint64_t)qp->local.vaddr + wr->sg_list[i].local_offs); 
+                offs_2 = wr->isRDMA() ? (static_cast<uint64_t>((uint64_t)qp->remote.vaddr + wr->sg_list[i].remote_offs)) : 0; 
+                offs_3 = static_cast<uint64_t>(wr->sg_list[i].len);
 
-                    postCmd(offs_3, offs_2, offs_1, offs_0);
-                }
-            } else { // IMMED
-				for(int i = 0; i < wr->num_sge; i++) {
-					uint64_t *params;
-					if(wr->opcode == IBV_WR_IMMED_HIGH) params = wr->sg_list[i].type.immed_high.params;
-					else if(wr->opcode == IBV_WR_IMMED_MID) params = wr->sg_list[i].type.immed_mid.params;
-					else params = wr->sg_list[i].type.immed_low.params;
-
-					// High
-					if (wr->opcode == IBV_WR_IMMED_HIGH) {
-						postPrep(0, 0, 0, params[7], ibvImmedHigh);
-					}
-					// Mid
-					if (wr->opcode == IBV_WR_IMMED_HIGH || wr->opcode == IBV_WR_IMMED_MID) {
-						postPrep(params[6], params[5], params[4], params[3], ibvImmedMid);
-					}
-					// Low
-					postCmd(params[2], params[1], params[0], offs_0);
-				}
-			}
+                postCmd(offs_3, offs_2, offs_1, offs_0);
+            }
         }
 
 		last_qp = qp->getId();
@@ -695,7 +713,7 @@ void cProcess::clearIbvAcks() {
  */
 void cProcess::postCmd(uint64_t offs_3, uint64_t offs_2, uint64_t offs_1, uint64_t offs_0) {
     // Lock
-    //dlock.lock();
+    dlock.lock();
     
     // Check outstanding
     while (rdma_cmd_cnt > (cmd_fifo_depth - cmd_fifo_thr)) {
@@ -732,7 +750,7 @@ void cProcess::postCmd(uint64_t offs_3, uint64_t offs_2, uint64_t offs_1, uint64
 #endif
 
     // Unlock
-    //dlock.unlock();	
+    dlock.unlock();	
 }
 
 // ======-------------------------------------------------------------------------------
@@ -770,7 +788,7 @@ void cProcess::writeQpContext(ibvQp *qp) {
 		offs[2] = ((static_cast<uint64_t>(qp->local.psn) & 0xffffff) << qpContextLpsnOffs) | 
 				  ((static_cast<uint64_t>(qp->remote.psn) & 0xffffff) << qpContextRpsnOffs);
 
-		offs[3] = ((static_cast<uint64_t>(qp->remote.vaddr) & 0xffffffffffff) << qpContextVaddrOffs) | 
+		offs[3] = ((static_cast<uint64_t>((uint64_t)qp->remote.vaddr) & 0xffffffffffff) << qpContextVaddrOffs) | 
 				  ((static_cast<uint64_t>(qp->remote.rkey) & 0xffff) << qpContextRkeyOffs);
 
         if(ioctl(fd, IOCTL_WRITE_CTX, &offs))
@@ -803,6 +821,97 @@ void cProcess::writeConnContext(ibvQp *qp, uint32_t port) {
         if(ioctl(fd, IOCTL_WRITE_CONN, &offs))
 			throw std::runtime_error("ioctl_write_conn() failed");
     }
+}
+
+/**
+* @brief TCP Open Connection
+*/
+
+bool cProcess::tcpOpenCon(uint32_t ip, uint32_t port, uint32_t* session){
+	// open connection
+    uint64_t open_con_req;
+    uint64_t open_con_sts = 0; 
+    uint32_t success = 0;
+    uint32_t sts_ip, dst_ip;
+    uint32_t sts_port, dst_port;
+    uint32_t sts_valid;
+
+    dst_ip = ip;
+    dst_port = port;
+    open_con_req = (uint32_t)dst_ip | ((uint64_t)dst_port << 32);
+    printf("open con req: %lx, dst ip:%x, dst port:%x\n", open_con_req, dst_ip, dst_port);
+    fflush(stdout);
+
+    success = 0;
+    double timeoutMs = 5000.0;
+    double durationMs = 0.0;
+    auto start = std::chrono::high_resolution_clock::now();
+	if(fcnfg.en_avx) {
+        cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_CON_REG) + fcnfg.qsfp_offs] = _mm256_set_epi64x(0, 0, 0, open_con_req);
+	} else {
+		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_CON_REG) + fcnfg.qsfp_offs] = open_con_req;
+	}
+    while (success == 0 && durationMs < timeoutMs)
+    {
+        std::this_thread::sleep_for(1000ms);
+
+		if(fcnfg.en_avx) {
+			open_con_sts = _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_CON_STS_REG) + fcnfg.qsfp_offs], 0x0);
+		} else {
+			open_con_sts = cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_CON_STS_REG) + fcnfg.qsfp_offs];
+		}
+        *session = open_con_sts & 0x0000000000007FFF;
+        sts_valid = (open_con_sts & 0x0000000000008000) >> 15;
+        sts_ip = (open_con_sts & 0x0000FFFFFFFF0000) >> 16;
+        sts_port = (open_con_sts >> 48); 
+        if ((sts_valid == 1) && (sts_ip == ip) && (sts_port == port))
+        {
+            success = 1;
+        }
+        else 
+            success = 0;
+        auto end = std::chrono::high_resolution_clock::now();
+        durationMs = (std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / 1000000.0);
+    }
+    printf("open con sts session:%x, success:%x, sts_ip:%x, sts_port:%x, duration[ms]:%f\n", *session, success, sts_ip, sts_port, durationMs);
+    fflush(stdout);
+
+    return success;
+
+}
+
+/**
+* @brief TCP Open Port
+*/
+
+bool cProcess::tcpOpenPort(uint32_t port){
+	uint64_t open_port_status;
+    uint64_t open_port = port;
+	if(fcnfg.en_avx) {
+        cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_PORT_REG) + fcnfg.qsfp_offs] = _mm256_set_epi64x(0, 0, 0, open_port);
+	} else {
+		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_PORT_REG) + fcnfg.qsfp_offs] = open_port;
+	}
+	
+    std::this_thread::sleep_for(10ms);
+	if(fcnfg.en_avx) {
+		open_port_status = _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_PORT_STS_REG) + fcnfg.qsfp_offs], 0x0);
+	} else {
+		open_port_status = cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_PORT_STS_REG) + fcnfg.qsfp_offs];
+	}
+
+    printf("open port: %lu, status: %lx\n", open_port, open_port_status);
+    fflush(stdout);
+
+	return (bool)open_port_status;
+}
+
+/**
+* @brief TCP Close Connection
+*/
+
+void cProcess::tcpCloseCon(uint32_t session){
+	// todo
 }
 
 /**

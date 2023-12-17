@@ -193,6 +193,8 @@ logic[31:0] regCrcDropPkgCount;
 logic       regCrcDropPkgCount_valid;
 logic[31:0] regInvalidPsnDropCount;
 logic       regInvalidPsnDropCount_valid;
+logic[31:0] regRetransCount;
+logic       regRetransCount_valid;
 
 logic       session_count_valid;
 logic[15:0] session_count_data;
@@ -200,7 +202,6 @@ logic[15:0] session_count_data;
 
 // ---------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------
-
 
 /**
  * Addresses
@@ -286,7 +287,28 @@ vio_ip inst_vio_ip (
 
 // In slice
 axis_reg inst_slice_in (.aclk(nclk), .aresetn(nresetn_r), .s_axis(s_axis_net), .m_axis(axis_slice_to_ibh));
-
+/*
+vio_stack_1 inst_vio_stack_1 (
+    .clk(nclk),
+    .probe_in0(s_axis_net.tready),
+    .probe_in1(axis_iph_to_arp_slice.tready),
+    .probe_in2(axis_iph_to_icmp_slice.tready),
+    .probe_in3(axis_iph_to_udp_slice.tready),
+    .probe_in4(axis_iph_to_toe_slice.tready),
+    .probe_in5(axis_iph_to_roce_slice.tready),
+    .probe_in6(axis_iph_to_icmpv6_slice.tready),
+    .probe_in7(axis_iph_to_rocev6_slice.tready),
+    
+    .probe_in8(s_axis_net.tvalid),
+    .probe_in9(axis_iph_to_arp_slice.tvalid),
+    .probe_in10(axis_iph_to_icmp_slice.tvalid),
+    .probe_in11(axis_iph_to_udp_slice.tvalid),
+    .probe_in12(axis_iph_to_toe_slice.tvalid),
+    .probe_in13(axis_iph_to_roce_slice.tvalid),
+    .probe_in14(axis_iph_to_icmpv6_slice.tvalid),
+    .probe_in15(axis_iph_to_rocev6_slice.tvalid)
+);
+*/
 // IP handler
 ip_handler_ip ip_handler_inst ( 
     .m_axis_arp_TVALID(axis_iph_to_arp_slice.tvalid), // output AXI4Stream_M_TVALID
@@ -680,7 +702,7 @@ if(ENABLE_RDMA == 1) begin
  * RoCE stack
  */
 
-roce_stack inst_roce_stack(
+roce_stack inst_roce_stack (
     .nclk(nclk), // input aclk
     .nresetn(nresetn_r), // input aresetn
 
@@ -713,9 +735,11 @@ roce_stack inst_roce_stack(
     .crc_drop_pkg_count_valid(regCrcDropPkgCount_valid),
     .crc_drop_pkg_count_data(regCrcDropPkgCount),
     .psn_drop_pkg_count_valid(regInvalidPsnDropCount_valid),
-    .psn_drop_pkg_count_data(regInvalidPsnDropCount)
+    .psn_drop_pkg_count_data(regInvalidPsnDropCount),
+    .retrans_count_valid(regRetransCount_valid),
+    .retrans_count_data(regRetransCount)
 );
-
+/*
 ila_roce inst_ila_roce (
     .clk(nclk),
     .probe0(axis_roce_slice_to_roce.tvalid),
@@ -732,7 +756,7 @@ ila_roce inst_ila_roce (
     .probe11(m_rdma_wr_req.data), // 96
     .probe12(s_rdma_sq.valid),
     .probe13(s_rdma_sq.ready),
-    .probe14(s_rdma_sq.data), // 544
+    .probe14(s_rdma_sq.data), // 256
     
     .probe15(m_axis_rdma_wr.tvalid),
     .probe16(m_axis_rdma_wr.tready),
@@ -751,12 +775,11 @@ ila_roce inst_ila_roce (
     .probe27(m_axis_net.tdata), // 512
     .probe28(m_axis_net.tlast)
 );
-
+*/
 /*
 create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_roce
-set_property -dict [list CONFIG.C_PROBE27_WIDTH {512} CONFIG.C_PROBE23_WIDTH {512} CONFIG.C_PROBE20_WIDTH {512} CONFIG.C_PROBE19_WIDTH {512} CONFIG.C_PROBE17_WIDTH {512} CONFIG.C_PROBE14_WIDTH {544} CONFIG.C_PROBE11_WIDTH {96} CONFIG.C_PROBE8_WIDTH {96} CONFIG.C_DATA_DEPTH {2048} CONFIG.C_NUM_OF_PROBES {29} CONFIG.Component_Name {ila_roce} CONFIG.C_EN_STRG_QUAL {1} CONFIG.C_PROBE28_MU_CNT {2} CONFIG.C_PROBE27_MU_CNT {2} CONFIG.C_PROBE26_MU_CNT {2} CONFIG.C_PROBE25_MU_CNT {2} CONFIG.C_PROBE24_MU_CNT {2} CONFIG.C_PROBE23_MU_CNT {2} CONFIG.C_PROBE22_MU_CNT {2} CONFIG.C_PROBE21_MU_CNT {2} CONFIG.C_PROBE20_MU_CNT {2} CONFIG.C_PROBE19_MU_CNT {2} CONFIG.C_PROBE18_MU_CNT {2} CONFIG.C_PROBE17_MU_CNT {2} CONFIG.C_PROBE16_MU_CNT {2} CONFIG.C_PROBE15_MU_CNT {2} CONFIG.C_PROBE14_MU_CNT {2} CONFIG.C_PROBE13_MU_CNT {2} CONFIG.C_PROBE12_MU_CNT {2} CONFIG.C_PROBE11_MU_CNT {2} CONFIG.C_PROBE10_MU_CNT {2} CONFIG.C_PROBE9_MU_CNT {2} CONFIG.C_PROBE8_MU_CNT {2} CONFIG.C_PROBE7_MU_CNT {2} CONFIG.C_PROBE6_MU_CNT {2} CONFIG.C_PROBE5_MU_CNT {2} CONFIG.C_PROBE4_MU_CNT {2} CONFIG.C_PROBE3_MU_CNT {2} CONFIG.C_PROBE2_MU_CNT {2} CONFIG.C_PROBE1_MU_CNT {2} CONFIG.C_PROBE0_MU_CNT {2} CONFIG.ALL_PROBE_SAME_MU_CNT {2}] [get_ips ila_roce]
+set_property -dict [list CONFIG.C_PROBE27_WIDTH {512} CONFIG.C_PROBE23_WIDTH {512} CONFIG.C_PROBE20_WIDTH {512} CONFIG.C_PROBE19_WIDTH {512} CONFIG.C_PROBE17_WIDTH {512} CONFIG.C_PROBE14_WIDTH {256} CONFIG.C_PROBE11_WIDTH {96} CONFIG.C_PROBE8_WIDTH {96} CONFIG.C_DATA_DEPTH {2048} CONFIG.C_NUM_OF_PROBES {29} CONFIG.Component_Name {ila_roce} CONFIG.C_EN_STRG_QUAL {1} CONFIG.C_PROBE28_MU_CNT {2} CONFIG.C_PROBE27_MU_CNT {2} CONFIG.C_PROBE26_MU_CNT {2} CONFIG.C_PROBE25_MU_CNT {2} CONFIG.C_PROBE24_MU_CNT {2} CONFIG.C_PROBE23_MU_CNT {2} CONFIG.C_PROBE22_MU_CNT {2} CONFIG.C_PROBE21_MU_CNT {2} CONFIG.C_PROBE20_MU_CNT {2} CONFIG.C_PROBE19_MU_CNT {2} CONFIG.C_PROBE18_MU_CNT {2} CONFIG.C_PROBE17_MU_CNT {2} CONFIG.C_PROBE16_MU_CNT {2} CONFIG.C_PROBE15_MU_CNT {2} CONFIG.C_PROBE14_MU_CNT {2} CONFIG.C_PROBE13_MU_CNT {2} CONFIG.C_PROBE12_MU_CNT {2} CONFIG.C_PROBE11_MU_CNT {2} CONFIG.C_PROBE10_MU_CNT {2} CONFIG.C_PROBE9_MU_CNT {2} CONFIG.C_PROBE8_MU_CNT {2} CONFIG.C_PROBE7_MU_CNT {2} CONFIG.C_PROBE6_MU_CNT {2} CONFIG.C_PROBE5_MU_CNT {2} CONFIG.C_PROBE4_MU_CNT {2} CONFIG.C_PROBE3_MU_CNT {2} CONFIG.C_PROBE2_MU_CNT {2} CONFIG.C_PROBE1_MU_CNT {2} CONFIG.C_PROBE0_MU_CNT {2} CONFIG.ALL_PROBE_SAME_MU_CNT {2}] [get_ips ila_roce]
 */
-
 
 `endif
 end
@@ -811,6 +834,41 @@ tcp_stack tcp_stack_inst(
     .session_count_data(session_count_data)
 );
 
+/*
+ila_tcp ila_tcp (
+  .clk(nclk), // input wire clk
+
+  .probe0(s_tcp_open_req.valid), // 1
+  .probe1(s_tcp_open_req.ready), // 1
+  .probe2(m_tcp_open_rsp.valid), // 1  
+  .probe3(m_tcp_open_rsp.ready), // 1   
+  .probe4(m_axis_tcp_rx.tvalid), // 1
+  .probe5(m_axis_tcp_rx.tready), // 1                 
+  .probe6(s_tcp_close_req.valid), // 1                        
+  .probe7(s_tcp_close_req.ready), // 1                     
+  .probe8(s_axis_tcp_tx.tvalid), //1                                                
+  .probe9(s_axis_tcp_tx.tready),//1
+  .probe10(s_tcp_tx_meta.valid),//1
+  .probe11(s_tcp_tx_meta.ready),//1
+  .probe12(m_tcp_tx_stat.valid),//1
+  .probe13(m_tcp_tx_stat.ready), //1
+  .probe14(m_tcp_notify.valid), //1
+  .probe15(m_tcp_notify.ready), //1
+  .probe16(m_tcp_listen_rsp.valid),  // 1
+  .probe17(m_tcp_listen_rsp.ready),  // 1
+  .probe18(s_tcp_listen_req.valid),  // 1
+  .probe19(s_tcp_listen_req.ready),  //1
+  .probe20(m_tcp_rx_meta.valid), // 1
+  .probe21(m_tcp_rx_meta.ready), // 1
+  .probe22(s_tcp_rd_pkg.valid),  // 1
+  .probe23(s_tcp_rd_pkg.ready), //1 
+
+  .probe24(s_tcp_listen_req.data), // 16
+  .probe25(m_tcp_listen_rsp.data), // 8
+  .probe26(m_tcp_open_rsp.data), // 72    
+  .probe27(s_tcp_open_req.data) // 48
+);*/
+
 `endif
 end
 
@@ -832,17 +890,17 @@ end
 
     logic[31:0] tcp_rx_pkg_counter;
     logic[31:0] tcp_tx_pkg_counter;
+
     logic[31:0] roce_rx_pkg_counter;
     logic[31:0] roce_tx_pkg_counter;
+    logic[31:0] roce_retrans_counter;
 
-    logic[7:0]  axis_stream_down_counter;
+    logic[15:0] axis_stream_down_counter;
     logic axis_stream_down;
 
     net_stat_t[NET_STATS_DELAY-1:0] net_stats_tmp; // Slice
 
-    assign net_stats_tmp[0].rx_word_counter = rx_word_counter;
     assign net_stats_tmp[0].rx_pkg_counter = rx_pkg_counter;
-    assign net_stats_tmp[0].tx_word_counter = tx_word_counter;
     assign net_stats_tmp[0].tx_pkg_counter = tx_pkg_counter;
     assign net_stats_tmp[0].arp_rx_pkg_counter = arp_rx_pkg_counter;
     assign net_stats_tmp[0].arp_tx_pkg_counter = arp_tx_pkg_counter;
@@ -854,12 +912,10 @@ end
     assign net_stats_tmp[0].roce_tx_pkg_counter = roce_tx_pkg_counter;
     assign net_stats_tmp[0].ibv_rx_pkg_counter = regIbvRxPkgCount;
     assign net_stats_tmp[0].ibv_tx_pkg_counter = regIbvTxPkgCount;
-    assign net_stats_tmp[0].roce_crc_drop_counter = regCrcDropPkgCount;
     assign net_stats_tmp[0].roce_psn_drop_counter = regInvalidPsnDropCount;
+    assign net_stats_tmp[0].roce_retrans_counter = regRetransCount;
     assign net_stats_tmp[0].tcp_session_counter = session_count_data;
-    assign net_stats_tmp[0].axis_stream_down_counter = axis_stream_down_counter;
     assign net_stats_tmp[0].axis_stream_down = axis_stream_down;
-
 
     assign m_net_stats = net_stats_tmp[NET_STATS_DELAY-1];
 
@@ -880,8 +936,8 @@ end
             roce_rx_pkg_counter <= '0;
             roce_tx_pkg_counter <= '0;
 
-            axis_stream_down_counter <= '0;
-            axis_stream_down <= 1'b0;      
+            axis_stream_down_counter <= '0;  
+            axis_stream_down <= 1'b0;
         end
 
         // Reg the stats
@@ -956,11 +1012,9 @@ end
             axis_stream_down_counter <= '0;
         end
         if (s_axis_net.tvalid && ~s_axis_net.tready) begin
-            axis_stream_down_counter <= axis_stream_down_counter + 1;
+            axis_stream_down_counter <= (axis_stream_down_counter == NET_STRM_DOWN_THRS) ? axis_stream_down_counter : axis_stream_down_counter + 1;
         end
-        if (axis_stream_down_counter > 2) begin
-            axis_stream_down <= 1'b1;
-        end
+        axis_stream_down <= (axis_stream_down_counter == NET_STRM_DOWN_THRS);
 
     end
 

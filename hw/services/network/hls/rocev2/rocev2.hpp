@@ -32,10 +32,9 @@
 #include "../ipv4/ipv4.hpp"
 #include "../ipv6/ipv6.hpp"
 #include "../udp/udp.hpp"
+#include "../crc/crc.hpp"
 #include "../ib_transport_protocol/ib_transport_protocol.hpp"
 //#include "../pointer_chasing/pointer_chasing.hpp"
-
-#define DISABLE_CRC_CHECK
 
 #if IP_VERSION == 6
 typedef ipv6Meta ipMeta;
@@ -43,7 +42,7 @@ typedef ipv6Meta ipMeta;
 typedef ipv4Meta ipMeta;
 #endif
 
-template <int WIDTH>
+template <int WIDTH, int INSTID>
 void rocev2(
 	hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
 	hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
@@ -64,14 +63,14 @@ void rocev2(
 	hls::stream<qpContext>&	s_axis_qp_interface,
 	hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
 	ap_uint<128> local_ip_address,
-
+	
 	// Debug
 #ifdef DBG_IBV
-	hls::stream<recvPkg>& m_axis_dbg_0,
-	hls::stream<retransEvent>& m_axis_dbg_1,
+	hls::stream<psnPkg>& m_axis_dbg_0,
 #endif 
 	ap_uint<32>& regCrcDropPkgCount,
 	ap_uint<32>& regInvalidPsnDropCount,
+    ap_uint<32>& regRetransCount,
 	ap_uint<32>& regIbvCountRx,
     ap_uint<32>& regIbvCountTx
 );

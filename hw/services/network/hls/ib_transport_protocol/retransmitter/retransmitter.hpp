@@ -36,13 +36,23 @@ const uint32_t META_TABLE_SIZE = 2000;
 
 struct retransEvent;
 
-struct retransRelease
+struct retransUpdate
 {
 	ap_uint<16> qpn;
 	ap_uint<24> latest_acked_req; //TODO rename?
-	retransRelease() {};
-	retransRelease(ap_uint<16> qpn, ap_uint<24> psn)
-		:qpn(qpn), latest_acked_req(psn) {}
+    ibOpCode op_code;
+	retransUpdate() {}
+	retransUpdate(ap_uint<16> qpn, ap_uint<24> psn, ibOpCode op_code)
+		:qpn(qpn), latest_acked_req(psn), op_code(op_code) {}
+};
+
+struct retransRdInit
+{
+    ap_uint<64> laddr;
+    ap_uint<1>  lst;
+    retransRdInit() {}
+    retransRdInit(ap_uint<64> laddr, ap_uint<1> lst)
+        :laddr(laddr), lst(lst) {}
 };
 
 struct retransmission
@@ -69,12 +79,14 @@ struct retransMeta
 
 struct retransAddrLen
 {
-	ap_uint<48> localAddr;
-	ap_uint<48> remoteAddr;
+	ap_uint<64> localAddr;
+	ap_uint<64> remoteAddr;
 	ap_uint<32> length;
+    ap_uint<1>  lst;
+    ap_uint<4>  offs;
 	retransAddrLen() {}
-	retransAddrLen(ap_uint<48> laddr, ap_uint<48> raddr, ap_uint<32> len)
-		:localAddr(laddr), remoteAddr(raddr), length(len) {}
+	retransAddrLen(ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len, ap_uint<1> lst, ap_uint<4> offs)
+		:localAddr(laddr), remoteAddr(raddr), length(len), lst(lst), offs(offs) {}
 };
 
 struct retransEntry
@@ -82,14 +94,16 @@ struct retransEntry
 	ap_uint<16> qpn;
 	ap_uint<24> psn;
 	ibOpCode	opCode;
-	ap_uint<48> localAddr;
-	ap_uint<48> remoteAddr;
+	ap_uint<64> localAddr;
+	ap_uint<64> remoteAddr;
 	ap_uint<32> length;
+    ap_uint<1>  lst;
+    ap_uint<4>  offs;
 	retransEntry() {}
-	retransEntry(ap_uint<16> qpn, ap_uint<24> psn, ibOpCode op, ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len)
-		:qpn(qpn), psn(psn), opCode(op), localAddr(laddr), remoteAddr(raddr), length(len) {}
+	retransEntry(ap_uint<16> qpn, ap_uint<24> psn, ibOpCode op, ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len, ap_uint<1> lst, ap_uint<4> offs)
+		:qpn(qpn), psn(psn), opCode(op), localAddr(laddr), remoteAddr(raddr), length(len), lst(lst), offs(offs) {}
 	retransEntry(retransMeta meta, retransAddrLen addrlen)
-		:qpn(meta.qpn), psn(meta.psn), opCode(meta.opCode), localAddr(addrlen.localAddr), remoteAddr(addrlen.remoteAddr), length(addrlen.length) {}
+		:qpn(meta.qpn), psn(meta.psn), opCode(meta.opCode), localAddr(addrlen.localAddr), remoteAddr(addrlen.remoteAddr), length(addrlen.length), lst(addrlen.lst), offs(addrlen.offs) {}
 };
 
 struct retransPointerEntry
@@ -126,14 +140,16 @@ struct retransMetaEntry
 	ap_uint<24> psn;
 	ap_uint<16> next;
 	ibOpCode	opCode;
-	ap_uint<48> localAddr;
-	ap_uint<48> remoteAddr;
+	ap_uint<64> localAddr;
+	ap_uint<64> remoteAddr;
 	ap_uint<32> length;
+    ap_uint<1>  lst;
+    ap_uint<4>  offs;
 	bool valid;
 	bool isTail;
 	retransMetaEntry() {}
 	retransMetaEntry(retransEntry& e)
-		:psn(e.psn), next(0), opCode(e.opCode), localAddr(e.localAddr), remoteAddr(e.remoteAddr), length(e.length), valid(true), isTail(true) {}
+		:psn(e.psn), next(0), opCode(e.opCode), localAddr(e.localAddr), remoteAddr(e.remoteAddr), length(e.length), lst(e.lst), offs(e.offs), valid(true), isTail(true) {}
 	retransMetaEntry(ap_uint<16> next)
 		:next(next) {}
 };
@@ -167,9 +183,10 @@ struct pointerReq
 /*********************IMPLEMENTATION*********************/
 
 template <int INSTID = 0>
-void retrans_pointer_table(	stream<pointerReq>&					pointerReqFifo,
-					stream<pointerUpdate>&				pointerUpdFifo,
-					stream<retransPointerEntry>& 		pointerRspFifo)
+void retrans_pointer_table(	
+    stream<pointerReq>&			    pointerReqFifo,
+	stream<pointerUpdate>&			pointerUpdFifo,
+	stream<retransPointerEntry>& 	pointerRspFifo)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -264,25 +281,27 @@ void retrans_meta_table(stream<retransMetaReq>&		meta_upd_req,
 }
 
 template <int INSTID = 0>
-void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
-					stream<retransmission>& rx2retrans_req,
-					stream<retransmission>& timer2retrans_req,
-					stream<retransEntry>&	tx2retrans_insertRequest,
-					stream<pointerReq>&					pointerReqFifo,
-					stream<pointerUpdate>&				pointerUpdFifo,
-					stream<retransPointerEntry>& 		pointerRspFifo, //TODO reorder
-					stream<retransMetaReq>&				metaReqFifo,
-					stream<retransMetaEntry>&			metaRspFifo,
-					stream<ap_uint<16> >&				freeListFifo,
-					stream<ap_uint<16> >&				releaseFifo,
-					stream<retransEvent>&				retrans2event)
-{
+void process_retransmissions(
+	stream<retransUpdate>&	        rx2retrans_upd,
+    stream<retransRdInit>&          retrans2rx_init,
+	stream<retransmission>&         rx2retrans_req,
+	stream<retransmission>&         timer2retrans_req,
+	stream<retransEntry>&	        tx2retrans_insertRequest,
+	stream<pointerReq>&				pointerReqFifo,
+	stream<pointerUpdate>&			pointerUpdFifo,
+	stream<retransPointerEntry>& 	pointerRspFifo, //TODO reorder
+	stream<retransMetaReq>&			metaReqFifo,
+	stream<retransMetaEntry>&		metaRspFifo,
+	stream<ap_uint<16> >&			freeListFifo,
+	stream<ap_uint<16> >&			releaseFifo,
+	stream<retransEvent>&			retrans2event
+) {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	enum retransStateType {MAIN, INSERT_0, INSERT_1, RELEASE_0, RELEASE_1, RETRANS_0, RETRANS_1, RETRANS_2, TIMER_RETRANS_0};
+	enum retransStateType {MAIN, INSERT_0, INSERT_1, UPDATE_0, UPDATE_1, RETRANS_0, RETRANS_1, RETRANS_2, TIMER_RETRANS_0};
 	static retransStateType rt_state = MAIN;
-	static retransRelease release;
+	static retransUpdate update;
 	static ap_uint<16> curr;
 	static ap_uint<16> newMetaIdx;
 	static retransEntry insert;
@@ -293,12 +312,12 @@ void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
 	switch (rt_state)
 	{
 	case MAIN:
-		if (!rx2retrans_release_upd.empty())
+		if (!rx2retrans_upd.empty())
 		{
-			rx2retrans_release_upd.read(release);
-			pointerReqFifo.write(pointerReq(release.qpn, true)); // enquire whether we have previous req for this qpn
-			rt_state = RELEASE_0;
-			std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: releasing " << release.latest_acked_req << std::endl;
+			rx2retrans_upd.read(update);
+			pointerReqFifo.write(pointerReq(update.qpn, true)); // enquire whether we have previous req for this qpn
+			rt_state = UPDATE_0;
+			std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: updating " << update.latest_acked_req << std::endl;
 		}
 		else if (!rx2retrans_req.empty())
 		{
@@ -357,70 +376,75 @@ void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
 		pointerUpdFifo.write(pointerUpdate(insert.qpn, ptrMeta));
 		rt_state = MAIN;
 		break;
-	case RELEASE_0:
+	case UPDATE_0:
 		if (!pointerRspFifo.empty())
 		{
+            std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_0 init entry" << std::endl;
 			pointerRspFifo.read(ptrMeta);
 			if (ptrMeta.valid)
 			{
+                std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_0 valid meta entry" << std::endl;
 				// Enquire the first uncleared index (head) in `Retrans Meta Table`
 				metaReqFifo.write(retransMetaReq(ptrMeta.head));
 				curr = ptrMeta.head;
-				rt_state = RELEASE_1;
+				rt_state = UPDATE_1;
 			}
 			else
 			{
 				// this should not happen
-				std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state RELEASE_0 invalid meta entry" << std::endl;
+				std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_0 invalid meta entry" << std::endl;
 				// Release lock
-				pointerUpdFifo.write(pointerUpdate(release.qpn, ptrMeta));
+				pointerUpdFifo.write(pointerUpdate(update.qpn, ptrMeta));
 				rt_state = MAIN;
 			}
 		}
 		break;
-	case RELEASE_1:
+	case UPDATE_1:
 		if (!metaRspFifo.empty())
 		{
 			metaRspFifo.read(meta);
 
-			// we should ideally never gets into this condition
-			if (meta.psn > release.latest_acked_req || !meta.valid)
-			{
-				// useless ACK
-				std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state RELEASE_1 invalid state" << std::endl;
-				// Release lock
-				pointerUpdFifo.write(pointerUpdate(release.qpn, ptrMeta));
-				rt_state = MAIN;
-				break;
-			}
-			// released until RC ACK psn
-			else if (meta.psn == release.latest_acked_req)
-			{
-				// the "next" index is now the head
-				ptrMeta.head = meta.next;
-				ptrMeta.valid = !meta.isTail;
-				pointerUpdFifo.write(pointerUpdate(release.qpn, ptrMeta));
-				rt_state = MAIN;
-			}
-			else if (meta.isTail)
-			{
-				// this is the last stored req, although psn still smaller than ACK
-				ptrMeta.valid = false;
-				ptrMeta.head = curr;
-				pointerUpdFifo.write(pointerUpdate(release.qpn, ptrMeta));
-				rt_state = MAIN;
-			}
-			else
-			{
-				// keep traversing the list until meet the conditions
-				metaReqFifo.write(retransMetaReq(meta.next));
-			}
+            if(!meta.valid) {
+                // Invalid state
+                std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 invalid state" << std::endl;
+                break;
+            } else {
+                // Address forwarding
+                if(update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_ONLY) 
+                {
+                    retrans2rx_init.write(retransRdInit(meta.localAddr, meta.lst));
 
-			// clear `Freelist Handler`
-			releaseFifo.write(curr);
-			std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: release success, psn " << meta.psn  << ", cleared pointer " << curr << std::endl;
+                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 forwarding local address, laddr " << meta.localAddr << std::endl;
+                }
 
-			curr = meta.next;
+                // Packet update
+                if(update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_MIDDLE) {
+                    // Packet update
+                    meta.localAddr += PMTU;
+                    meta.remoteAddr += PMTU;
+                    meta.length -= PMTU;
+                    meta.psn += 1;
+                    // Update meta table
+                    metaReqFifo.write(retransMetaReq(ptrMeta.head, retransMetaEntry(meta)));
+
+                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 packet update, psn " << meta.psn << ", laddr " << meta.localAddr << ", raddr " << meta.remoteAddr << ", len " << meta.length << std::endl;
+                } else {
+                    // Move index
+                    ptrMeta.head = meta.next;
+                    ptrMeta.valid = !meta.isTail;
+
+                    // Clear free list
+                    releaseFifo.write(curr);
+                    curr = meta.next;
+
+                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 ack update, psn " << meta.psn << std::endl;
+                }
+            }
+
+            // update the lock
+            pointerUpdFifo.write(pointerUpdate(update.qpn, ptrMeta));
+            // return to main
+            rt_state = MAIN;
 		}
 		break;
 	case RETRANS_0:
@@ -463,7 +487,7 @@ void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
 				if (meta.psn == retrans.psn)
 				{
 					std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: retransmitting psn " << meta.psn << std::endl;
-					retrans2event.write(retransEvent(meta.opCode, retrans.qpn, meta.localAddr, meta.remoteAddr, meta.length, meta.psn));
+					retrans2event.write(retransEvent(meta.opCode, retrans.qpn, meta.localAddr, meta.remoteAddr, meta.length, meta.psn, meta.lst, meta.offs));
 					if (!meta.isTail)
 					{
 						rt_state = RETRANS_2;
@@ -492,7 +516,7 @@ void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
 					rt_state = RETRANS_2;
 				}
 				std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: retransmitting psn " << meta.psn << std::endl;
-				retrans2event.write(retransEvent(meta.opCode, retrans.qpn, meta.localAddr, meta.remoteAddr, meta.length, meta.psn));
+				retrans2event.write(retransEvent(meta.opCode, retrans.qpn, meta.localAddr, meta.remoteAddr, meta.length, meta.psn, meta.lst, meta.offs));
 			}
 		}
 		break;
@@ -539,12 +563,14 @@ void freelist_handler(	stream<ap_uint<16> >& rt_releaseFifo,
 }
 
 template <int INSTID = 0>
-void retransmitter(	stream<retransRelease>&	rx2retrans_release_upd,
-					stream<retransmission>& rx2retrans_req,
-					stream<retransmission>& timer2retrans_req,
-					stream<retransEntry>&	tx2retrans_insertRequest,
-					stream<retransEvent>&	retrans2event)
-{
+void retransmitter(	
+	stream<retransUpdate>&	rx2retrans_upd,
+    stream<retransRdInit>&  retrans2rx_init,
+	stream<retransmission>& rx2retrans_req,
+	stream<retransmission>& timer2retrans_req,
+	stream<retransEntry>&	tx2retrans_insertRequest,
+	stream<retransEvent>&	retrans2event
+) {
 //#pragma HLS DATAFLOW
 //#pragma HLS INTERFACE ap_ctrl_none register port=return
 #pragma HLS INLINE
@@ -573,16 +599,19 @@ void retransmitter(	stream<retransRelease>&	rx2retrans_release_upd,
 	retrans_meta_table<INSTID>( rt_metaReqFifo,
 						rt_metaRspFifo);
 
-	process_retransmissions<INSTID>(rx2retrans_release_upd,
-							rx2retrans_req,
-							timer2retrans_req,
-							tx2retrans_insertRequest,
-							rt_pointerReqFifo,
-							rt_pointerUpdFifo,
-							rt_pointerRspFifo,
-							rt_metaReqFifo,
-							rt_metaRspFifo,
-							rt_freeListFifo,
-							rt_releaseFifo,
-							retrans2event);
+	process_retransmissions<INSTID>(
+		rx2retrans_upd,
+        retrans2rx_init,
+		rx2retrans_req,
+		timer2retrans_req,
+		tx2retrans_insertRequest,
+		rt_pointerReqFifo,
+		rt_pointerUpdFifo,
+		rt_pointerRspFifo,
+		rt_metaReqFifo,
+		rt_metaRspFifo,
+		rt_freeListFifo,
+		rt_releaseFifo,
+		retrans2event
+	);
 }

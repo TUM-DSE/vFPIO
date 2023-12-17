@@ -27,7 +27,7 @@
 
 `timescale 1ns / 1ps
 
-`define DBG_IBV
+//`define DBG_IBV
 
 import lynxTypes::*;
 
@@ -60,20 +60,20 @@ module roce_stack (
     input  logic [31:0]         local_ip_address,
 
     output logic                ibv_rx_pkg_count_valid,
-    output logic[31:0]          ibv_rx_pkg_count_data,    
+    output logic [31:0]         ibv_rx_pkg_count_data,    
     output logic                ibv_tx_pkg_count_valid,
-    output logic[31:0]          ibv_tx_pkg_count_data,    
+    output logic [31:0]         ibv_tx_pkg_count_data,    
     output logic                crc_drop_pkg_count_valid,
-    output logic[31:0]          crc_drop_pkg_count_data,
+    output logic [31:0]         crc_drop_pkg_count_data,
     output logic                psn_drop_pkg_count_valid,
-    output logic[31:0]          psn_drop_pkg_count_data
+    output logic [31:0]         psn_drop_pkg_count_data,
+    output logic                retrans_count_valid,
+    output logic [31:0]         retrans_count_data
 );
 
 //
-// Assign
-//
-
 // SQ
+//
 metaIntf #(.STYPE(rdma_req_t)) rdma_sq ();
 `ifdef VITIS_HLS
     logic [RDMA_REQ_BITS+32-RDMA_OPCODE_BITS-1:0] rdma_sq_data;
@@ -83,31 +83,43 @@ metaIntf #(.STYPE(rdma_req_t)) rdma_sq ();
 
 always_comb begin
 `ifdef VITIS_HLS
-  rdma_sq_data                                        = 0;
-  rdma_sq_data[0+:RDMA_OPCODE_BITS]                   = rdma_sq.data.opcode;
-  rdma_sq_data[32+:RDMA_QPN_BITS]                     = rdma_sq.data.qpn;
-  rdma_sq_data[32+RDMA_QPN_BITS]                      = rdma_sq.data.host;
-  rdma_sq_data[32+RDMA_QPN_BITS+1]                    = rdma_sq.data.mode;
-  rdma_sq_data[32+RDMA_QPN_BITS+1+:RDMA_MSG_BITS]     = rdma_sq.data.msg;
+  rdma_sq_data                                                      = 0;
+  
+  rdma_sq_data[0+:RDMA_OPCODE_BITS]                                 = rdma_sq.data.opcode;
+  rdma_sq_data[32+:RDMA_QPN_BITS]                                   = rdma_sq.data.qpn;
+
+  rdma_sq_data[32+RDMA_QPN_BITS+0+:1]                               = rdma_sq.data.host;
+  rdma_sq_data[32+RDMA_QPN_BITS+1+:1]                               = rdma_sq.data.last;
+
+  rdma_sq_data[32+RDMA_QPN_BITS+2+:RDMA_OFFS_BITS]                  = rdma_sq.data.offs;
+
+  rdma_sq_data[32+RDMA_QPN_BITS+2+RDMA_OFFS_BITS+:RDMA_MSG_BITS]    = rdma_sq.data.msg;
 `else
-  rdma_sq_data                                        = 0;
-  rdma_sq_data[0+:RDMA_OPCODE_BITS]                   = rdma_sq.data.opcode;
-  rdma_sq_data[RDMA_OPCODE_BITS+:RDMA_QPN_BITS]       = rdma_sq.data.qpn;
-  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS]        = rdma_sq.data.host;
-  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+1]      = rdma_sq.data.mode;
-  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+1+:RDMA_MSG_BITS]  = rdma_sq.data.msg;
+  rdma_sq_data                                                      = 0;
+
+  rdma_sq_data[0+:RDMA_OPCODE_BITS]                                 = rdma_sq.data.opcode;
+  rdma_sq_data[RDMA_OPCODE_BITS+:RDMA_QPN_BITS]                     = rdma_sq.data.qpn;
+  
+  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+0+:1]                 = rdma_sq.data.host;
+  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+1+:1]                 = rdma_sq.data.last;
+
+  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+2+:RDMA_OFFS_BITS]    = rdma_sq.data.offs;
+
+  rdma_sq_data[RDMA_OPCODE_BITS+RDMA_QPN_BITS+2+RDMA_OFFS_BITS+:RDMA_MSG_BITS] = rdma_sq.data.msg;
 `endif
 end
 
-// RD and WR cmd
+//
+// RD and WR interface
+// 
 logic [RDMA_BASE_REQ_BITS-1:0] rd_cmd_data;
 logic [RDMA_BASE_REQ_BITS-1:0] wr_cmd_data;
 
 assign m_rdma_rd_req.data.vaddr             = rd_cmd_data[0+:VADDR_BITS];
 assign m_rdma_rd_req.data.len               = rd_cmd_data[VADDR_BITS+:LEN_BITS];
-assign m_rdma_rd_req.data.stream            = rd_cmd_data[VADDR_BITS+LEN_BITS+:1];
-assign m_rdma_rd_req.data.sync              = rd_cmd_data[VADDR_BITS+LEN_BITS+1+:1];
-assign m_rdma_rd_req.data.ctl               = rd_cmd_data[VADDR_BITS+LEN_BITS+2+:1];
+assign m_rdma_rd_req.data.ctl               = rd_cmd_data[VADDR_BITS+LEN_BITS+:1];
+assign m_rdma_rd_req.data.stream            = rd_cmd_data[VADDR_BITS+LEN_BITS+1+:1];
+assign m_rdma_rd_req.data.sync              = rd_cmd_data[VADDR_BITS+LEN_BITS+2+:1];
 assign m_rdma_rd_req.data.host              = rd_cmd_data[VADDR_BITS+LEN_BITS+3+:1];
 assign m_rdma_rd_req.data.dest              = rd_cmd_data[VADDR_BITS+LEN_BITS+4+:DEST_BITS];
 assign m_rdma_rd_req.data.pid               = rd_cmd_data[VADDR_BITS+LEN_BITS+4+DEST_BITS+:PID_BITS];
@@ -115,83 +127,57 @@ assign m_rdma_rd_req.data.vfid              = rd_cmd_data[VADDR_BITS+LEN_BITS+4+
 
 assign m_rdma_wr_req.data.vaddr             = wr_cmd_data[0+:VADDR_BITS];
 assign m_rdma_wr_req.data.len               = wr_cmd_data[VADDR_BITS+:LEN_BITS];
-assign m_rdma_wr_req.data.stream            = wr_cmd_data[VADDR_BITS+LEN_BITS+:1];
-assign m_rdma_wr_req.data.sync              = wr_cmd_data[VADDR_BITS+LEN_BITS+1+:1];
-assign m_rdma_wr_req.data.ctl               = wr_cmd_data[VADDR_BITS+LEN_BITS+2+:1];
+assign m_rdma_wr_req.data.ctl               = wr_cmd_data[VADDR_BITS+LEN_BITS+:1];
+assign m_rdma_wr_req.data.stream            = wr_cmd_data[VADDR_BITS+LEN_BITS+1+:1];
+assign m_rdma_wr_req.data.sync              = wr_cmd_data[VADDR_BITS+LEN_BITS+2+:1];
 assign m_rdma_wr_req.data.host              = wr_cmd_data[VADDR_BITS+LEN_BITS+3+:1];
 assign m_rdma_wr_req.data.dest              = wr_cmd_data[VADDR_BITS+LEN_BITS+4+:DEST_BITS];
 assign m_rdma_wr_req.data.pid               = wr_cmd_data[VADDR_BITS+LEN_BITS+4+DEST_BITS+:PID_BITS];
 assign m_rdma_wr_req.data.vfid              = wr_cmd_data[VADDR_BITS+LEN_BITS+4+DEST_BITS+PID_BITS+:N_REGIONS_BITS];
 
-// DBG
-logic [31:0] ibv_rx_count;
-logic ibv_rx_count_valid;
-
+//
 // ACKs
+//
 metaIntf #(.STYPE(rdma_ack_t)) rdma_ack ();
 logic [RDMA_ACK_BITS-1:0] ack_meta_data;
 assign rdma_ack.data.rd = ack_meta_data[0];
+assign rdma_ack.data.cmplt = 1'b0;
 assign rdma_ack.data.pid = ack_meta_data[1+:PID_BITS];
 assign rdma_ack.data.vfid = ack_meta_data[1+PID_BITS+:N_REGIONS_BITS]; 
-assign rdma_ack.data.syndrome = ack_meta_data[1+RDMA_ACK_QPN_BITS+:RDMA_ACK_SYNDROME_BITS];
-assign rdma_ack.data.msn = ack_meta_data[1+RDMA_ACK_QPN_BITS+RDMA_ACK_SYNDROME_BITS+:RDMA_ACK_MSN_BITS];
+assign rdma_ack.data.ssn = ack_meta_data[1+RDMA_ACK_QPN_BITS+:RDMA_ACK_PSN_BITS]; // msn
 
-assign m_rdma_ack.data = rdma_ack.data;
-assign m_rdma_ack.valid = rdma_ack.valid;
-
-// MSN flow control
-rdma_msn inst_rdma_msn (
+// Flow control
+rdma_flow inst_rdma_flow (
     .aclk(nclk),
     .aresetn(nresetn),
     .s_req(s_rdma_sq),
     .m_req(rdma_sq),
-    .s_ack(rdma_ack)
+    .s_ack(rdma_ack),
+    .m_ack(m_rdma_ack)
 );
-
-`ifdef DBG_IBV
-
-metaIntf #(.STYPE(logic[511:0])) m_axis_dbg_0 ();
-metaIntf #(.STYPE(logic[215:0])) m_axis_dbg_1 ();
-assign m_axis_dbg_0.ready = 1'b1;
-assign m_axis_dbg_1.ready = 1'b1;
-
-logic [31:0] cnt_retrans;
-
-always_ff @(posedge nclk) begin
-    if(~nresetn) begin
-        cnt_retrans <= 0;
-    end
-    else begin
-        cnt_retrans <= m_axis_dbg_1.valid ? cnt_retrans + 1 : cnt_retrans;
-    end
-end
-/*
-vio_ack inst_vio_ack (
-    .clk(nclk),
-    .probe_in0(cnt_retrans) // 32
-);
-*/
 /*
 ila_ack inst_ila_ack (
-  .clk(nclk),
-  .probe0(m_axis_dbg_0.valid),
-  .probe1(m_axis_dbg_0.data), // 512
-  .probe2(m_axis_dbg_1.valid),
-  .probe3(m_axis_dbg_1.data), // 216
-  .probe4(rdma_sq_valid),
-  .probe5(m_rdma_ack.valid),
-  .probe6(m_rdma_ack.ready),
-  .probe7(m_rdma_ack.data) // 48
+    .clk(nclk),
+    .probe0(rdma_sq.valid),
+    .probe1(rdma_sq.ready),
+    .probe2(rdma_sq.data), // 512
+    .probe3(rdma_ack.valid)
 );
 */
-`endif
 
+//
 // RoCE stack
+//
 rocev2_ip rocev2_inst(
     .ap_clk(nclk), // input aclk
     .ap_rst_n(nresetn), // input aresetn
     
 `ifdef VITIS_HLS
+
+    // Debug
+`ifdef DBG_IBV
+`endif
+
     // RX
     .s_axis_rx_data_TVALID(s_axis_rx.tvalid),
     .s_axis_rx_data_TREADY(s_axis_rx.tready),
@@ -251,17 +237,6 @@ rocev2_ip rocev2_inst(
     // IP
     .local_ip_address({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
 
-    // Debug
-`ifdef DBG_IBV
-    .m_axis_dbg_0_TVALID(m_axis_dbg_0.valid),
-    .m_axis_dbg_0_TREADY(m_axis_dbg_0.ready),
-    .m_axis_dbg_0_TDATA(m_axis_dbg_0.data),
-    .m_axis_dbg_1_TVALID(m_axis_dbg_1.valid),
-    .m_axis_dbg_1_TREADY(m_axis_dbg_1.ready),
-    .m_axis_dbg_1_TDATA(m_axis_dbg_1.data),
-`endif
-
-
     .regIbvCountRx(ibv_rx_pkg_count_data),
     .regIbvCountRx_ap_vld(ibv_rx_pkg_count_valid),
     .regIbvCountTx(ibv_tx_pkg_count_data),
@@ -269,9 +244,16 @@ rocev2_ip rocev2_inst(
     .regCrcDropPkgCount(crc_drop_pkg_count_data),
     .regCrcDropPkgCount_ap_vld(crc_drop_pkg_count_valid),
     .regInvalidPsnDropCount(psn_drop_pkg_count_data),
-    .regInvalidPsnDropCount_ap_vld(psn_drop_pkg_count_valid)
+    .regInvalidPsnDropCount_ap_vld(psn_drop_pkg_count_valid),
+    .regRetransCount(retrans_count_data),
+    .regRetransCount_ap_vld(retrans_count_valid)
     
 `else
+
+    // Debug
+`ifdef DBG_IBV
+`endif
+
     // RX
     .s_axis_rx_data_TVALID(s_axis_rx.tvalid),
     .s_axis_rx_data_TREADY(s_axis_rx.tready),
@@ -331,16 +313,6 @@ rocev2_ip rocev2_inst(
     // IP
     .local_ip_address_V({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
 
-    // Debug
-`ifdef DBG_IBV
-    .m_axis_dbg_0_V_TVALID(m_axis_dbg_0.valid),
-    .m_axis_dbg_0_V_TREADY(m_axis_dbg_0.ready),
-    .m_axis_dbg_0_V_TDATA(m_axis_dbg_0.data),
-    .m_axis_dbg_1_V_TVALID(m_axis_dbg_1.valid),
-    .m_axis_dbg_1_V_TREADY(m_axis_dbg_1.ready),
-    .m_axis_dbg_1_V_TDATA(m_axis_dbg_1.data),
-`endif
-
     .regIbvCountRx_V(ibv_rx_pkg_count_data),
     .regIbvCountRx_V_ap_vld(ibv_rx_pkg_count_valid),
     .regIbvCountTx_V(ibv_tx_pkg_count_data),
@@ -348,8 +320,12 @@ rocev2_ip rocev2_inst(
     .regCrcDropPkgCount_V(crc_drop_pkg_count_data),
     .regCrcDropPkgCount_V_ap_vld(crc_drop_pkg_count_valid),
     .regInvalidPsnDropCount_V(psn_drop_pkg_count_data),
-    .regInvalidPsnDropCount_V_ap_vld(psn_drop_pkg_count_valid)
+    .regInvalidPsnDropCount_V_ap_vld(psn_drop_pkg_count_valid),
+    .regRetransCount_V(retrans_count_data),
+    .regRetransCount_V_ap_vld(retrans_count_valid)
+
 `endif
 );
+
 
 endmodule
