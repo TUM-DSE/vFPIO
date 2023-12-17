@@ -228,7 +228,7 @@ module design_user_wrapper_{{ c_reg }} (
     // AXI4S TCP/IP QSFP1 SOURCE
     output logic[AXI_NET_BITS-1:0]              axis_tcp_1_src_tdata,
     output logic[AXI_NET_BITS/8-1:0]            axis_tcp_1_src_tkeep,
-    output logic[PID_BITS-1:0]                  axis_tcp_1_src_tid;
+    output logic[PID_BITS-1:0]                  axis_tcp_1_src_tid,
     output logic                                axis_tcp_1_src_tlast,
     input  logic                                axis_tcp_1_src_tready,
     output logic                                axis_tcp_1_src_tvalid,
