@@ -104,6 +104,13 @@ switch $cfg(example) {
         }
     }
 
+    "resource_usage" {
+        puts "simple user logic used to measure resource usage."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/resource_usage"
+    }
+
     "pr_hbm_part1" {
         puts "Partial reconf example with HBM (part 1)"
 
