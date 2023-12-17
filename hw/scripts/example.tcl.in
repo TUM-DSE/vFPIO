@@ -104,6 +104,52 @@ switch $cfg(example) {
         }
     }
 
+    "resource_usage" {
+        puts "simple user logic used to measure resource usage."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/resource_usage"
+    }
+
+    "pr_hbm_part1" {
+        puts "Partial reconf example with HBM (part 1)"
+
+        add_files "$hw_dir/hdl/operators/pr_hbm/part1/rtl"
+        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/pr_hbm/part1/constraints"
+
+        for {set i 0}  {$i < $cfg(n_config)} {incr i} {
+            set cmd "add_files -norecurse $hw_dir/hdl/operators/pr_hbm/part1/rtl/pr_hbm_part1_c$i\_0.svh -of_objects [get_reconfig_modules design_user_wrapper_c$i\_0]"
+            eval $cmd
+
+            set cmd "import_files $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i -of_objects [get_reconfig_modules design_user_wrapper_c$i\_0]"
+            eval $cmd
+
+            # Execute scripts, e.g. for IP generation
+            if {[file exists $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i.tcl]} {
+                puts "Execute script: c$i.tcl"
+                source $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i.tcl
+            }
+        }
+    }
+
+    "pr_hbm_sha256" {
+        puts "sha256hls with PR and HBM options."
+
+        # Add source files
+        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/pr_hbm/sha256hls/constraints"
+        add_files "$hw_dir/hdl/operators/pr_hbm/sha256hls/rtl"
+
+        set cmd "add_files -norecurse $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/pr_hbm_sha256_c0_0.svh  -of_objects [get_reconfig_modules design_user_wrapper_c0_0]"        
+        eval $cmd
+
+        set cmd "add_files $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/c0  -of_objects [get_reconfig_modules design_user_wrapper_c0_0]"
+        eval $cmd
+
+        # Execute scripts, e.g. for IP generation
+        puts "Execute script: c$i.tcl"
+        source $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/c0.tcl
+    } 
+
     default {
         puts "No example chosen"
     }

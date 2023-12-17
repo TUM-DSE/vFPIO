@@ -1166,8 +1166,8 @@ module design_dynamic_wrapper #(
             .s_tcp_rx_meta_n(tcp_1_rx_meta_s2[i]),
             .m_tcp_tx_meta_n(tcp_1_tx_meta_s2[i]),
             .s_tcp_tx_stat_n(tcp_1_tx_stat_s2[i]),
-            .s_axis_tcp_rx_n(axis_tcp_1_s2[i]),
-            .m_axis_tcp_tx_n(axis_tcp_1_s2[i]),
+            .s_axis_tcp_rx_n(axis_tcp_1_in_s2[i]),
+            .m_axis_tcp_tx_n(axis_tcp_1_out_s2[i]),
 
             .m_tcp_notify_u(tcp_1_notify_s3[i]),
             .s_tcp_rd_pkg_u(tcp_1_rd_pkg_s3[i]),
