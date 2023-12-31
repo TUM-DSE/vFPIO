@@ -28,6 +28,118 @@ switch $cfg(example) {
         exec cp -rf "$hw_dir/hdl/operators/examples/hyperloglog/." "$proj_dir/hdl/config_0"
     }
 
+    "sha256" {
+        puts "SHA256 example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/sha256"  
+    }
+
+    "md5" {
+        puts "MD5 example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/md5"  
+    }
+
+    "rng" {
+        puts "rng example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rng"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rng/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rng/ip.tcl
+        }
+    }
+
+    "nw" {
+        puts "nw example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/nw"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/nw/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/nw/ip.tcl
+        }
+    }
+    
+    "matmul" {
+        puts "matmul example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/matmul"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/matmul/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/matmul/ip.tcl
+        }
+    }
+
+    "gzip" {
+        puts "gzip example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/gzip"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/gzip/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/gzip/ip.tcl
+        }
+    }
+
+    "keccak" {
+        puts "keccak example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/keccak"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/keccak/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/keccak/ip.tcl
+        }
+    }
+
+    "hls4ml" {
+        puts "hls4ml example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/hls4ml"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/hls4ml/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/hls4ml/ip.tcl
+        }
+    }
+
+    "sha256hls" {
+        puts "sha256hls example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/sha256hls"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/sha256hls/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/sha256hls/ip.tcl
+        }
+    }
+
+    "bram_app" {
+        puts "BRAM access example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/bram_app"
+    }
+
     "perf_dram" {
         puts "Striping DRAM benchmark."
 
@@ -47,6 +159,27 @@ switch $cfg(example) {
 
         # Add source files
         add_files "$hw_dir/hdl/operators/examples/perf_rdma/"
+    }
+
+    "rdma_aes" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_aes/"
+    }
+
+    "rdma_sha256" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_sha256/"
+    }
+
+    "rdma_md5" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_md5/"
     }
 
     "perf_rdma_card" {
