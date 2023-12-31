@@ -15,6 +15,7 @@
 #include <atomic>
 #include <signal.h> 
 #include <boost/program_options.hpp>
+#include <fmt/printf.h>
 
 #include "cBench.hpp"
 #include "ibvQpMap.hpp"
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
     bool oper = defOper;
     bool mstr = true;
 
-    char const* env_var_ip = std::getenv("DEVICE_1_IP_ADDRESS_0");
+    char const* env_var_ip = std::getenv("FPGA_0_IP_ADDRESS");
     if(env_var_ip == nullptr) 
         throw std::runtime_error("IBV IP address not provided");
     string ibv_ip(env_var_ip);
@@ -138,12 +139,22 @@ int main(int argc, char *argv[])
     iqp->ibvSync(mstr);
 
     // Fill the data
+    uint64_t fill = (mstr) ? 3 : 9;
+    // Fill the data
     for(int i = 0; i < max_size/64; i++) {
       for(int j = 0; j < 8; j++) {
-	      hMem[i*8+j] = i;
+	      hMem[i*8+j] = fill;
       } 
     } 
-    
+
+    for(int i = 0; i < max_size/64; i++) {
+        for(int j = 0; j < 8; j++) {
+            fmt::print("{} ", hMem[i*8+j]);
+        } 
+        std::cout << "\n";
+    } 
+
+
     PR_HEADER("RDMA BENCHMARK");
     while(sg.len <= max_size) {
         // Setup
@@ -246,7 +257,14 @@ int main(int argc, char *argv[])
         sg.len *= 2;
     }
     std::cout << std::endl;
-    
+
+    for(int i = 0; i < max_size/64; i++) {
+        for(int j = 0; j < 8; j++) {
+            fmt::print("{} ", hMem[i*8+j]);
+        } 
+        std::cout << "\n";
+    } 
+    fmt::print("\n");
 
     // Done
     if (mstr) {

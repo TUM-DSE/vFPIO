@@ -147,6 +147,21 @@ enum class CoyoteAlloc {
     RCNFG_2M = 3
 };
 
+/* IO devices */
+enum class IODevs : uint8_t {
+    HOST_MEM = 0x01,
+    FPGA_DRAM = 0x02,
+    RDMA_0_HOST_SEND = 0b00000101,
+    RDMA_0_HOST_RECEIVE = 0b00001001,
+    RDMA_0_CARD_SEND = 0b00000110,
+    RDMA_0_CARD_RECEIVE = 0b00001010,
+    RDMA_1_HOST_SEND = 0b00010001,
+    RDMA_1_HOST_RECEIVE = 0b00100001,
+    RDMA_1_CARD_SEND = 0b00010010,
+    RDMA_1_CARD_RECEIVE = 0b00100010,
+    ERROR_DEV = 0b11111111,
+};
+
 /* AVX regs */
 enum class CnfgAvxRegs : uint32_t {
     CTRL_REG = 0,
@@ -165,6 +180,11 @@ enum class CnfgAvxRegs : uint32_t {
     TCP_OPEN_CON_STS_REG = 34,
     TCP_OPEN_PORT_STS_REG = 35,
     TCP_CLOSE_CON_REG = 36,   
+    CNTX_STAT_REG = 50,
+    REQ_COUNT_REG = 51,
+    TIME_STAT_REG = 52,
+    IO_SWITCH_REG = 53,
+    PRIO_STAT_REG = 54,
     STAT_DMA_REG = 64
 };
 
@@ -204,6 +224,7 @@ enum class CnfgLegRegs : uint32_t {
     RDMA_STAT_CMD_USED_REG = 41,
     RDMA_STAT_POSTED_REG = 42,
     RDMA_CMPLT_REG = 43,
+    IO_SWITCH_REG = 53,
     STAT_DMA_REG = 64,
     TCP_OPEN_CON_REG = 65,
     TCP_OPEN_PORT_REG = 66,

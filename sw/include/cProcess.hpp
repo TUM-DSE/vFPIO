@@ -228,6 +228,17 @@ public:
 	void tcpCloseCon(uint32_t session);
 
 	/**
+	 * @brief IO control switch 
+	 */
+	void ioSwitch(IODevs io_dev);
+
+	void ioSwDbg();
+
+	uint64_t ioStatus();
+
+	IODevs userInIOSwtch(uint8_t user_req);
+
+	/**
 	 * @brief Debug
 	 * 
 	 */

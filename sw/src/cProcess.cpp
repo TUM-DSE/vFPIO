@@ -931,6 +931,84 @@ void cProcess::netDrop(bool clr, bool dir, uint32_t packet_id) {
 			throw std::runtime_error("ioctl_net_drop() failed");
 }
 
+
+/**
+ * @brief IO control switch
+ * 
+ * @param io_dev - target IO device
+ */
+void cProcess::ioSwitch(IODevs io_dev) {
+	#ifdef EN_AVX
+	if(fcnfg.en_avx){
+		cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)] = _mm256_set_epi64x(0, 0, 0, static_cast<uint8_t>(io_dev));
+	}
+	else
+#endif
+		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::IO_SWITCH_REG)] = static_cast<uint8_t>(io_dev);
+};
+
+void cProcess::ioSwDbg() {
+	std::cout << "IO switch register: " << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) 
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2)
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1)
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+}
+
+uint64_t cProcess::ioStatus() {
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+	return _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0);
+}
+
+IODevs cProcess::userInIOSwtch(uint8_t user_req)
+{
+	IODevs io_dev;
+	switch (user_req)
+	{
+	case 0b00000001:
+		io_dev = IODevs::HOST_MEM;
+		break;
+	case 0b00000010:
+		io_dev = IODevs::FPGA_DRAM;
+		break;
+	case 0b00000101:
+		io_dev = IODevs::RDMA_0_HOST_SEND;
+		break;
+	case 0b00001001:
+		io_dev = IODevs::RDMA_0_HOST_RECEIVE;
+		break;
+	case 0b00000110:
+		io_dev = IODevs::RDMA_0_CARD_SEND;
+		break;
+	case 0b00001010:
+		io_dev = IODevs::RDMA_0_CARD_RECEIVE;
+		break;
+	case 0b00010001:
+		io_dev = IODevs::RDMA_1_HOST_SEND;
+		break;
+	case 0b00100001:
+		io_dev = IODevs::RDMA_1_HOST_RECEIVE;
+		break;
+	case 0b00010010:
+		io_dev = IODevs::RDMA_1_CARD_SEND;
+		break;
+	case 0b00100010:
+		io_dev = IODevs::RDMA_1_CARD_RECEIVE;
+		break;
+	default:
+		io_dev = IODevs::ERROR_DEV;
+		break;
+	}
+
+	return io_dev;
+}
+
 // ======-------------------------------------------------------------------------------
 // DEBUG
 // ======-------------------------------------------------------------------------------
