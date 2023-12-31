@@ -150,8 +150,14 @@ module tlb_top #(
 	output logic [N_REGIONS-1:0]		decouple,
 	
 	// Page fault IRQ
-	output logic [N_REGIONS-1:0]    	pf_irq
+	output logic [N_REGIONS-1:0]    	pf_irq,
+
+    // IO Control switches
+    output logic [N_REGIONS-1:0][7:0]   io_ctrl_switch
 );
+
+    logic [N_REGIONS-1:0][3:0] prio;
+    logic [31:0]               cntx;
 
 // Internal
 `ifdef EN_STRM
@@ -256,15 +262,18 @@ for(genvar i = 0; i < N_REGIONS; i++) begin
         .m_wback(wback_arb[i]),
     `endif
         .decouple(decouple[i]),
-        .pf_irq(pf_irq[i])
+        .prio(prio[i]),
+        .cntx(cntx),
+        .pf_irq(pf_irq[i]),
+        .io_ctrl(io_ctrl_switch[i])
     );
 
 end
 
 // Instantiate arbitration
 `ifdef EN_STRM
-    tlb_arbiter inst_hdma_arb_rd (.aclk(aclk), .aresetn(aresetn), .s_req(rd_HDMA_arb), .m_req(m_rd_XDMA_host), .s_mux_user(s_mux_host_rd_user));
-    tlb_arbiter inst_hdma_arb_wr (.aclk(aclk), .aresetn(aresetn), .s_req(wr_HDMA_arb), .m_req(m_wr_XDMA_host), .s_mux_user(s_mux_host_wr_user));
+    tlb_arbiter inst_hdma_arb_rd (.aclk(aclk), .aresetn(aresetn), .s_req(rd_HDMA_arb), .m_req(m_rd_XDMA_host), .s_mux_user(s_mux_host_rd_user), .prio(prio), .cntx(cntx));
+    tlb_arbiter inst_hdma_arb_wr (.aclk(aclk), .aresetn(aresetn), .s_req(wr_HDMA_arb), .m_req(m_wr_XDMA_host), .s_mux_user(s_mux_host_wr_user), .prio(prio));
 `endif
 
 `ifdef EN_MEM
@@ -275,8 +284,13 @@ end
         end
     end
 
-    tlb_arbiter_isr #(.RDWR(0)) inst_idma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(IDMA_arb), .m_req_host(m_rd_XDMA_sync), .m_req_card(m_wr_CDMA_sync));
-    tlb_arbiter_isr #(.RDWR(1)) inst_sdma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(SDMA_arb), .m_req_host(m_wr_XDMA_sync), .m_req_card(m_rd_CDMA_sync));
+    `ifdef EN_STRM
+        tlb_arbiter_isr #(.RDWR(0)) inst_idma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(IDMA_arb), .m_req_host(m_rd_XDMA_sync), .m_req_card(m_wr_CDMA_sync));
+        tlb_arbiter_isr #(.RDWR(1)) inst_sdma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(SDMA_arb), .m_req_host(m_wr_XDMA_sync), .m_req_card(m_rd_CDMA_sync));
+    `else
+        tlb_arbiter_isr #(.RDWR(0)) inst_idma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(IDMA_arb), .m_req_host(m_rd_XDMA_sync), .m_req_card(m_wr_CDMA_sync), .prio(prio), .cntx(cntx));
+        tlb_arbiter_isr #(.RDWR(1)) inst_sdma_arb (.aclk(aclk), .aresetn(aresetn), .s_req(SDMA_arb), .m_req_host(m_wr_XDMA_sync), .m_req_card(m_rd_CDMA_sync), .prio(prio));
+    `endif
 `endif
 
 `ifdef EN_WB

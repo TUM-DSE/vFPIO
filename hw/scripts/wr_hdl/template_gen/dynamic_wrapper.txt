@@ -129,6 +129,9 @@ module design_dynamic_wrapper #(
 	logic [N_REG_DYN_DCPL-1:0][N_REGIONS-1:0] decouple;
     logic [N_REGIONS-1:0] decouple_uclk;  
 
+    // IO control switch
+    logic [N_REGIONS-1:0][7:0] io_ctrl_switches;  
+
 {% if cnfg.en_uclk %}  
     for(genvar i = 0; i < N_REGIONS; i++) begin
         xpm_cdc_single #(
@@ -1482,7 +1485,8 @@ module design_dynamic_wrapper #(
         .m_wback(m_wback),
 {% endif %}	
         .decouple(decouple[0]),
-        .pf_irq(usr_irq)
+        .pf_irq(usr_irq),
+        .io_ctrl_switch(io_ctrl_switches)
 	);
 	
 	// ----------------------------------------------------------------------
@@ -1675,6 +1679,7 @@ module design_dynamic_wrapper #(
         .axis_tcp_1_src_tready    (axis_tcp_1_out_ul[{{ i }}].tready),
         .axis_tcp_1_src_tvalid    (axis_tcp_1_out_ul[{{ i }}].tvalid),
 {% endif %}
+        .io_ctrl(io_ctrl_switches[{{ i }}]),
 {% if cnfg.en_uclk %}
         .aclk                   (uclk),
         .aresetn                (uresetn),

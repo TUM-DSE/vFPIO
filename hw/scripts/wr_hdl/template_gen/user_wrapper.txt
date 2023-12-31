@@ -234,6 +234,9 @@ module design_user_wrapper_{{ c_reg }} (
     output logic                                axis_tcp_1_src_tvalid,
 
 {% endif %}
+    // IO control
+    input wire [7:0]            io_ctrl,
+
     // Clock and reset
     input  logic                                aclk,
     input  logic[0:0]                           aresetn,
@@ -1079,6 +1082,7 @@ module design_user_wrapper_{{ c_reg }} (
         .axis_tcp_1_sink(axis_tcp_1_sink),
         .axis_tcp_1_src(axis_tcp_1_src),
 	{% endif %}
+        .io_ctrl(io_ctrl),
         .aclk(aclk),
 	    .aresetn(aresetn)
 	);

@@ -35,6 +35,14 @@
 	assign m.tvalid     = s.tvalid;    	\
 	assign s.tready     = m.tready;
 
+`define AXISR_ASSIGN_CTS(s, m)              \
+	m.tdata      = s.tdata;     	\
+	m.tkeep      = s.tkeep;     	\
+	m.tlast      = s.tlast;     	\
+	m.tvalid     = s.tvalid;    	\
+	s.tready     = m.tready;		\
+	m.tid  		= s.tid; 	
+
 `define AXISR_ASSIGN(s, m)              \
 	assign m.tdata      = s.tdata;     	\
 	assign m.tkeep      = s.tkeep;     	\

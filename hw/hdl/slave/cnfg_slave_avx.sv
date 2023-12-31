@@ -35,6 +35,7 @@ module cnfg_slave_avx #(
 ) (
     input  logic                aclk,
     input  logic                aresetn,
+    input  logic [31:0]         cntx,
 
     // Control bus (HOST)
     AXI4.s                      s_axim_ctrl,
@@ -117,7 +118,11 @@ module cnfg_slave_avx #(
     output logic                restart_rd,
     output logic                restart_wr,
     output logic                decouple,
-    output logic                pf_irq
+    output logic                pf_irq,
+    output logic [3:0]          prio,
+
+    // IO Control
+    output logic [7:0]          io_ctrl
 );
 
 // -- Decl -------------------------------------------------------------------------------
@@ -174,6 +179,7 @@ logic irq_pending;
 logic rd_sent_host, rd_sent_card, rd_sent_sync;
 logic wr_sent_host, wr_sent_card, wr_sent_sync;
 
+logic [31:0] req_count_debug;
 logic [31:0] rd_queue_used;
 logic [31:0] wr_queue_used;
 
@@ -204,6 +210,14 @@ logic [31:0] a_data_out_wr;
 logic [31:0] b_data_out_wr;
 logic wr_clear;
 logic [PID_BITS-1:0] wr_clear_addr;
+
+logic [3:0] prio;
+logic [63:0] time_counter;
+logic count_enabled;
+logic transfer_start;
+assign prio = slv_reg[PRIO_STAT_REG][3:0];
+assign req_count_debug = slv_reg[REQ_COUNT_REG][31:0];
+assign transfer_start = slv_reg[CTRL_REG][CTRL_START_RD] || slv_reg[CTRL_REG][CTRL_START_WR];
 
 `ifdef EN_WB
 metaIntf #(.STYPE(wback_t)) wback [N_WBS] ();
@@ -395,6 +409,17 @@ localparam integer TCP_1_OPEN_CON_STS_REG                   = 42;
 localparam integer TCP_1_OPEN_PORT_STS_REG                  = 43;
 localparam integer TCP_1_CLOSE_CON_REG                      = 44;
 
+// 50 (RO) : Context switch mmaping
+localparam integer CNTX_STAT_REG                            = 50;
+// 51 (RO) : Cycles for transaction 
+localparam integer REQ_COUNT_REG                            = 51;
+// 52 (RO) : Cycles for transaction 
+localparam integer TIME_STAT_REG                            = 52;
+// 53 (RW): IO Switch
+localparam integer IO_SWITCH_REG                            = 53;
+// 54 (RO) : Priority mmaping
+localparam integer PRIO_STAT_REG                            = 54;
+
 /*
 ila_cnfg_slave ila_cnfg_slave
 (
@@ -430,6 +455,32 @@ ila_cnfg_slave ila_cnfg_slave
   .probe28(axi_arburst) //2
  ); 
 */
+
+// cycle counter logic
+always_ff @(posedge aclk) begin
+    if ( aresetn == 1'b0 ) begin
+        time_counter <= 0;
+        count_enabled <= 0;
+    end
+    else begin
+        if (transfer_start && count_enabled != 1) begin
+            count_enabled <= 1;
+        end
+
+        if (rd_clear) begin
+            time_counter <= 0;
+        end
+
+        if (count_enabled) begin
+            time_counter <= time_counter + 1;
+        end
+
+        if (req_count_debug > 0 && b_data_out_rd == req_count_debug && count_enabled) begin
+            count_enabled <= 0;
+        end
+    end
+end
+
 // ---------------------------------------------------------------------------------------- 
 // Write process 
 // ----------------------------------------------------------------------------------------
@@ -441,6 +492,8 @@ always_ff @(posedge aclk) begin
 
         slv_reg[CTRL_REG][CTRL_BYTES*8-1:0] <= 0;
         slv_reg[CTRL_DP_REG_SET][CTRL_BYTES*8-1:0] <= 0;
+        slv_reg[CNTX_STAT_REG][31:0] <= 0;
+        slv_reg[TIME_STAT_REG][63:0] <= 0;
 
         irq_pending <= 1'b0;
 
@@ -467,6 +520,8 @@ always_ff @(posedge aclk) begin
     end
     else begin
         slv_reg[CTRL_REG][CTRL_BYTES*8-1:0] <= 0;
+        slv_reg[CNTX_STAT_REG][31:0] <= cntx;
+        slv_reg[TIME_STAT_REG][63:0] <= time_counter;
 
 `ifdef EN_RDMA_0
         rdma_0_post <= 1'b0;
@@ -518,6 +573,18 @@ always_ff @(posedge aclk) begin
                     for (int i = 0; i < CTRL_BYTES; i++) begin
                         if(s_axim_ctrl.wstrb[i]) begin
                             slv_reg[CTRL_DP_REG_SET][(i*8)+:8] <= slv_reg[CTRL_DP_REG_SET][(i*8)+:8] & ~s_axim_ctrl.wdata[(i*8)+:8];
+                        end
+                    end
+                PRIO_STAT_REG:
+                    for (int i = 0; i < 2; i++) begin 
+                        if(s_axim_ctrl.wstrb[i]) begin
+                            slv_reg[PRIO_STAT_REG][(i*8)+:8] <= s_axim_ctrl.wdata[(i*8)+:8];
+                        end
+                    end
+                REQ_COUNT_REG:
+                    for (int i = 0; i < 2; i++) begin 
+                        if(s_axim_ctrl.wstrb[i]) begin
+                            slv_reg[REQ_COUNT_REG][(i*8)+:8] <= s_axim_ctrl.wdata[(i*8)+:8];
                         end
                     end
 
@@ -641,6 +708,13 @@ always_ff @(posedge aclk) begin
                     end
                 end
 `endif
+                IO_SWITCH_REG: // IO switch configure
+                    for (int i = 0; i < AVX_DATA_BITS/8; i++) begin
+                        if(s_axim_ctrl.wstrb[i]) begin
+                            slv_reg[IO_SWITCH_REG][(i*8)+:8] <= s_axim_ctrl.wdata[(i*8)+:8];
+                        end
+                    end
+
                 default: ;
             endcase
         end
@@ -727,6 +801,12 @@ always_ff @(posedge aclk) begin
             axi_rdata[31:0] <= {wr_queue_used[15:0], rd_queue_used[15:0]};
             axi_rdata[255:32] <= slv_reg[STAT_REG][255:32];        
         end
+        [CNTX_STAT_REG:CNTX_STAT_REG]: begin
+            axi_rdata[31:0] <= slv_reg[CNTX_STAT_REG][31:0];
+        end
+        [TIME_STAT_REG:TIME_STAT_REG]: begin
+            axi_rdata[63:0] <= slv_reg[TIME_STAT_REG][63:0];
+        end
 
 `ifdef EN_WB
         [WBACK_REG:WBACK_REG]:
@@ -760,6 +840,9 @@ always_ff @(posedge aclk) begin
             axi_rdata[RDMA_CMPLT_SSN_OFFS+:RDMA_MSN_BITS] <= cmplt_que_rdma_1_out.data.ssn;
         end
 `endif
+
+        [IO_SWITCH_REG:IO_SWITCH_REG]:
+            axi_rdata <= slv_reg[IO_SWITCH_REG];
 
         [STAT_DMA_REG:STAT_DMA_REG+(2**PID_BITS)-1]: begin
             axi_mux <= 1'b1; 
@@ -1050,6 +1133,9 @@ assign s_pfault_wr.ready = 1'b1;
 assign restart_rd = slv_reg[CTRL_REG][CTRL_CLR_IRQ_PENDING];
 assign restart_wr = slv_reg[CTRL_REG][CTRL_CLR_IRQ_PENDING];
 assign pf_irq = irq_pending;
+
+// IO control
+assign io_ctrl = slv_reg[IO_SWITCH_REG][7:0];
 
 // Decoupling
 assign decouple = slv_reg[CTRL_DP_REG_SET][CTRL_DP_DECOUPLE];

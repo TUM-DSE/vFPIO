@@ -43,6 +43,8 @@ module tlb_arbiter_isr #(
 ) (
 	input  logic    					aclk,    
 	input  logic    					aresetn,
+    input  logic [N_REGIONS-1:0][3:0]   prio,
+    output logic [31:0]                 cntx,
 
 	// User logic
     dmaIsrIntf.s                        s_req [N_REGIONS],
@@ -67,6 +69,12 @@ logic [PID_BITS-1:0] pid;
 logic [DEST_BITS-1:0] dest;
 logic stream;
 logic host;
+logic [N_REGIONS-1:0][3:0] prio_reg;
+logic [31:0] cntx_switch;
+logic [N_REGIONS_BITS-1:0] done_prev;
+logic [N_REGIONS_BITS-1:0] max_prio;
+logic [N_REGIONS_BITS:0] max_prio_N;
+logic [N_REGIONS_BITS-1:0] rr_mode;
 
 metaIntf #(.STYPE(logic[N_REGIONS_BITS+PID_BITS+DEST_BITS+1+1-1:0])) done_seq_in ();
 logic [N_REGIONS_BITS-1:0] done_vfid;
@@ -106,20 +114,53 @@ end
 else begin
     assign done_src = m_req_host.rsp.done;
 end
+assign cntx = cntx_switch;
 
+always_comb begin
+    max_prio_N = 0;
+
+    for(int i = 0; i < N_REGIONS; i++) begin
+        if (prio[i] > max_prio_N)
+            max_prio_N = i + 1;
+    end
+end
 // --------------------------------------------------------------------------------
 // RR
 // --------------------------------------------------------------------------------
 always_ff @(posedge aclk) begin
-	if(aresetn == 1'b0) begin
-		rr_reg <= 0;
-	end else begin
+    if(aresetn == 1'b0) begin
+        cntx_switch <= 0;
+        done_prev <= 0;
+        max_prio <= N_REGIONS;
+        rr_mode <= 0;
+        rr_reg <= 0;
+    end else begin
         if(valid_src & ready_src) begin 
-            rr_reg <= rr_reg + 1;
-            if(rr_reg >= N_REGIONS-1)
-                rr_reg <= 0;
+            if (max_prio_N == 0) 
+                max_prio <= N_REGIONS;
+            else
+                max_prio <= max_prio_N - 1;
+            
+            // no max priority. Do round robin
+            if (max_prio == N_REGIONS) begin
+                rr_reg <= rr_reg + 1;
+                if(rr_reg >= N_REGIONS-1)
+                    rr_reg <= 0;
+                rr_mode = 0;
+            end
+            else begin 
+                rr_reg = max_prio;
+                rr_mode <= rr_mode + 1;
+                if(rr_mode >= 1)
+                    rr_mode <= 0;
+            end
         end
-	end
+
+        if (done_prev != done_vfid) begin
+            done_prev <= done_vfid;
+            cntx_switch <= cntx_switch + 1;
+        end
+    end
 end
 
 // DP
@@ -135,19 +176,38 @@ always_comb begin
     response_snk = 0;
 
     for(int i = 0; i < N_REGIONS; i++) begin
-        if(i+rr_reg >= N_REGIONS) begin
-            if(valid_snk[i+rr_reg-N_REGIONS]) begin
-                valid_src = valid_snk[i+rr_reg-N_REGIONS] && done_seq_in.ready;
-                vfid = i+rr_reg-N_REGIONS;
-                break;
+        if (rr_mode == 0) begin
+            if(i+rr_reg >= N_REGIONS) begin
+                if(valid_snk[i+rr_reg-N_REGIONS]) begin
+                    valid_src = valid_snk[i+rr_reg-N_REGIONS] && done_seq_in.ready;
+                    vfid = i+rr_reg-N_REGIONS;
+                    break;
+                end
+            end
+            else begin
+                if(valid_snk[i+rr_reg]) begin
+                    valid_src = valid_snk[i+rr_reg] && done_seq_in.ready;
+                    vfid = i+rr_reg;
+                    break;
+                end
             end
         end
         else begin
-            if(valid_snk[i+rr_reg]) begin
-                valid_src = valid_snk[i+rr_reg] && done_seq_in.ready;
-                vfid = i+rr_reg;
-                break;
+            if(i >= rr_reg+1) begin
+                if(valid_snk[N_REGIONS-i+rr_reg]) begin
+                    valid_src = valid_snk[N_REGIONS-i+rr_reg] && done_seq_in.ready;
+                    vfid = N_REGIONS-i+rr_reg;
+                    break;
+                end
             end
+            else begin
+                if(valid_snk[rr_reg-i]) begin
+                    valid_src = valid_snk[rr_reg-i] && done_seq_in.ready;
+                    vfid = rr_reg-i;
+                    break;
+                end
+            end
+
         end
     end
 

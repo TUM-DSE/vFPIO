@@ -44,5 +44,10 @@
 	assign m.data		= s.data;					\
 	assign m.valid 		= s.valid; 					\
 	assign s.ready 		= m.ready;
-	
+
+`define META_ASSIGN_CTS(s, m)              				\
+	m.data		= s.data;					\
+	m.valid 		= s.valid; 					\
+	s.ready 		= m.ready;
+  
 `endif
