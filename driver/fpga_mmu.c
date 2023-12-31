@@ -855,7 +855,9 @@ int tlb_get_user_pages(struct fpga_dev *d, uint64_t start, size_t count, int32_t
     }
 
     // pin
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
+    ret_val = get_user_pages_remote(curr_mm, (unsigned long)start, n_pages, 1, user_pg->hpages, NULL);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0) 
     ret_val = get_user_pages_remote(curr_mm, (unsigned long)start, n_pages, 1, user_pg->hpages, NULL, NULL);
 #else 
     ret_val = get_user_pages_remote(curr_task, curr_mm, (unsigned long)start, n_pages, 1, user_pg->hpages, NULL, NULL);
