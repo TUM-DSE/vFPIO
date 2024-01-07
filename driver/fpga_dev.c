@@ -310,7 +310,11 @@ int init_char_devices(struct bus_drvdata *d, dev_t dev)
     pr_info("virtual FPGA device regions allocated, major number %d\n", fpga_major);
 
     // create device class
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0)
+    fpga_class = class_create(DEV_NAME);
+    #else 
     fpga_class = class_create(THIS_MODULE, DEV_NAME);
+    #endif
 
     // virtual FPGA devices
     d->fpga_dev = kmalloc(d->n_fpga_reg * sizeof(struct fpga_dev), GFP_KERNEL);
