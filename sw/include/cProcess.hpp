@@ -208,24 +208,16 @@ public:
 	 */
 	void netDrop(bool clr, bool dir, uint32_t packet_id);
 
-
 	/**
-	 * @brief TCP Open Connection
+	 * @brief IO control switch 
 	 */
+	void ioSwitch(IODevs io_dev);
 
-	bool tcpOpenCon(uint32_t ip, uint32_t port, uint32_t* session);
-	
-	/**
-	 * @brief TCP Open Port
-	 */
-	
-	bool tcpOpenPort(uint32_t port);
+	void ioSwDbg();
 
-	/**
-	 * @brief TCP Close Connection
-	 */
+	uint64_t ioStatus();
 
-	void tcpCloseCon(uint32_t session);
+	IODevs userInIOSwtch(uint8_t user_req);
 
 	/**
 	 * @brief Debug

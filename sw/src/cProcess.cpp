@@ -204,6 +204,10 @@ void cProcess::userMap(void *vaddr, uint32_t len) {
 	tmp[1] = static_cast<uint64_t>(len);
 	tmp[2] = static_cast<uint64_t>(cpid);
 
+	DBG3("0: " << std::hex << tmp[0] << std::dec);
+	DBG3("1: " << tmp[1]);
+	DBG3("2: " << tmp[2]);
+
 	if(ioctl(fd, IOCTL_MAP_USER, &tmp))
 		throw std::runtime_error("ioctl_map_user() failed");
 
@@ -256,6 +260,9 @@ void* cProcess::getMem(const csAlloc& cs_alloc) {
 			case CoyoteAlloc::HUGE_2M : // drv lock
 				size = cs_alloc.n_pages * (1 << hugePageShift);
 				mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+				DBG3("mem " << std::hex << tmp[0] << std::dec);
+				DBG3("size " << size);
+				DBG3("in HUGE_2M");
 				userMap(mem, size);
 				
 				break;
@@ -609,10 +616,10 @@ void cProcess::ibvPostSend(ibvQp *qp, ibvSendWr *wr) {
     if(fcnfg.en_rdma) {
         if(qp->local.ip_addr == qp->remote.ip_addr) {
             for(int i = 0; i < wr->num_sge; i++) {
-                void *local_addr = (void*)((uint64_t)qp->local.vaddr + wr->sg_list[i].local_offs);
-                void *remote_addr = (void*)((uint64_t)qp->remote.vaddr + wr->sg_list[i].remote_offs);
+                void *local_addr = (void*)(qp->local.vaddr + wr->sg_list[i].type.rdma.local_offs);
+                void *remote_addr = (void*)(qp->remote.vaddr + wr->sg_list[i].type.rdma.remote_offs);
 
-                memcpy(remote_addr, local_addr, wr->sg_list[i].len);
+                memcpy(remote_addr, local_addr, wr->sg_list[i].type.rdma.len);
             }
         } else {
             uint64_t offs_0 = (
@@ -626,14 +633,43 @@ void cProcess::ibvPostSend(ibvQp *qp, ibvSendWr *wr) {
 				((static_cast<uint64_t>(wr->send_flags.clr) & 0x1) << RDMA_CLR_OFFS)); 
 				
             uint64_t offs_1, offs_2, offs_3;
+            
+            if(wr->isRDMA()) { // RDMA
+                for(int i = 0; i < wr->num_sge; i++) {
+					offs_1 = static_cast<uint64_t>(qp->local.vaddr + wr->sg_list[i].type.rdma.local_offs); 
+					offs_2 = static_cast<uint64_t>(qp->remote.vaddr + wr->sg_list[i].type.rdma.remote_offs); 
+					offs_3 = static_cast<uint64_t>(wr->sg_list[i].type.rdma.len);
+					std::cout << "wr->isRDMA()" << std::endl;
 
-            for(int i = 0; i < wr->num_sge; i++) {
-                offs_1 = static_cast<uint64_t>((uint64_t)qp->local.vaddr + wr->sg_list[i].local_offs); 
-                offs_2 = wr->isRDMA() ? (static_cast<uint64_t>((uint64_t)qp->remote.vaddr + wr->sg_list[i].remote_offs)) : 0; 
-                offs_3 = static_cast<uint64_t>(wr->sg_list[i].len);
+                    postCmd(offs_3, offs_2, offs_1, offs_0);
+                }
+            } else if(wr->isSEND()) { // SEND
+                for(int i = 0; i < wr->num_sge; i++) {
+					offs_1 = static_cast<uint64_t>(wr->sg_list[i].type.send.local_addr);
+					offs_2 = static_cast<uint64_t>(wr->sg_list[i].type.send.len);
+					offs_3 = 0;
 
-                postCmd(offs_3, offs_2, offs_1, offs_0);
-            }
+                    postCmd(offs_3, offs_2, offs_1, offs_0);
+                }
+            } else { // IMMED
+				for(int i = 0; i < wr->num_sge; i++) {
+					uint64_t *params;
+					if(wr->opcode == IBV_WR_IMMED_HIGH) params = wr->sg_list[i].type.immed_high.params;
+					else if(wr->opcode == IBV_WR_IMMED_MID) params = wr->sg_list[i].type.immed_mid.params;
+					else params = wr->sg_list[i].type.immed_low.params;
+
+					// High
+					if (wr->opcode == IBV_WR_IMMED_HIGH) {
+						postPrep(0, 0, 0, params[7], ibvImmedHigh);
+					}
+					// Mid
+					if (wr->opcode == IBV_WR_IMMED_HIGH || wr->opcode == IBV_WR_IMMED_MID) {
+						postPrep(params[6], params[5], params[4], params[3], ibvImmedMid);
+					}
+					// Low
+					postCmd(params[2], params[1], params[0], offs_0);
+				}
+			}
         }
 
 		last_qp = qp->getId();
@@ -788,7 +824,7 @@ void cProcess::writeQpContext(ibvQp *qp) {
 		offs[2] = ((static_cast<uint64_t>(qp->local.psn) & 0xffffff) << qpContextLpsnOffs) | 
 				  ((static_cast<uint64_t>(qp->remote.psn) & 0xffffff) << qpContextRpsnOffs);
 
-		offs[3] = ((static_cast<uint64_t>((uint64_t)qp->remote.vaddr) & 0xffffffffffff) << qpContextVaddrOffs) | 
+		offs[3] = ((static_cast<uint64_t>(qp->remote.vaddr) & 0xffffffffffff) << qpContextVaddrOffs) | 
 				  ((static_cast<uint64_t>(qp->remote.rkey) & 0xffff) << qpContextRkeyOffs);
 
         if(ioctl(fd, IOCTL_WRITE_CTX, &offs))
@@ -824,97 +860,6 @@ void cProcess::writeConnContext(ibvQp *qp, uint32_t port) {
 }
 
 /**
-* @brief TCP Open Connection
-*/
-
-bool cProcess::tcpOpenCon(uint32_t ip, uint32_t port, uint32_t* session){
-	// open connection
-    uint64_t open_con_req;
-    uint64_t open_con_sts = 0; 
-    uint32_t success = 0;
-    uint32_t sts_ip, dst_ip;
-    uint32_t sts_port, dst_port;
-    uint32_t sts_valid;
-
-    dst_ip = ip;
-    dst_port = port;
-    open_con_req = (uint32_t)dst_ip | ((uint64_t)dst_port << 32);
-    printf("open con req: %lx, dst ip:%x, dst port:%x\n", open_con_req, dst_ip, dst_port);
-    fflush(stdout);
-
-    success = 0;
-    double timeoutMs = 5000.0;
-    double durationMs = 0.0;
-    auto start = std::chrono::high_resolution_clock::now();
-	if(fcnfg.en_avx) {
-        cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_CON_REG) + fcnfg.qsfp_offs] = _mm256_set_epi64x(0, 0, 0, open_con_req);
-	} else {
-		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_CON_REG) + fcnfg.qsfp_offs] = open_con_req;
-	}
-    while (success == 0 && durationMs < timeoutMs)
-    {
-        std::this_thread::sleep_for(1000ms);
-
-		if(fcnfg.en_avx) {
-			open_con_sts = _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_CON_STS_REG) + fcnfg.qsfp_offs], 0x0);
-		} else {
-			open_con_sts = cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_CON_STS_REG) + fcnfg.qsfp_offs];
-		}
-        *session = open_con_sts & 0x0000000000007FFF;
-        sts_valid = (open_con_sts & 0x0000000000008000) >> 15;
-        sts_ip = (open_con_sts & 0x0000FFFFFFFF0000) >> 16;
-        sts_port = (open_con_sts >> 48); 
-        if ((sts_valid == 1) && (sts_ip == ip) && (sts_port == port))
-        {
-            success = 1;
-        }
-        else 
-            success = 0;
-        auto end = std::chrono::high_resolution_clock::now();
-        durationMs = (std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count() / 1000000.0);
-    }
-    printf("open con sts session:%x, success:%x, sts_ip:%x, sts_port:%x, duration[ms]:%f\n", *session, success, sts_ip, sts_port, durationMs);
-    fflush(stdout);
-
-    return success;
-
-}
-
-/**
-* @brief TCP Open Port
-*/
-
-bool cProcess::tcpOpenPort(uint32_t port){
-	uint64_t open_port_status;
-    uint64_t open_port = port;
-	if(fcnfg.en_avx) {
-        cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_PORT_REG) + fcnfg.qsfp_offs] = _mm256_set_epi64x(0, 0, 0, open_port);
-	} else {
-		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_PORT_REG) + fcnfg.qsfp_offs] = open_port;
-	}
-	
-    std::this_thread::sleep_for(10ms);
-	if(fcnfg.en_avx) {
-		open_port_status = _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TCP_OPEN_PORT_STS_REG) + fcnfg.qsfp_offs], 0x0);
-	} else {
-		open_port_status = cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::TCP_OPEN_PORT_STS_REG) + fcnfg.qsfp_offs];
-	}
-
-    printf("open port: %lu, status: %lx\n", open_port, open_port_status);
-    fflush(stdout);
-
-	return (bool)open_port_status;
-}
-
-/**
-* @brief TCP Close Connection
-*/
-
-void cProcess::tcpCloseCon(uint32_t session){
-	// todo
-}
-
-/**
  * @brief Network dropper
  * 
  */
@@ -929,6 +874,83 @@ void cProcess::netDrop(bool clr, bool dir, uint32_t packet_id) {
 	std::cout << "Sending a drop" << std::endl;
 	if(ioctl(fd, IOCTL_NET_DROP, &offs))
 			throw std::runtime_error("ioctl_net_drop() failed");
+}
+
+/**
+ * @brief IO control switch
+ * 
+ * @param io_dev - target IO device
+ */
+void cProcess::ioSwitch(IODevs io_dev) {
+	#ifdef EN_AVX
+	if(fcnfg.en_avx){
+		cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)] = _mm256_set_epi64x(0, 0, 0, static_cast<uint8_t>(io_dev));
+	}
+	else
+#endif
+		cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::IO_SWITCH_REG)] = static_cast<uint8_t>(io_dev);
+};
+
+void cProcess::ioSwDbg() {
+	std::cout << "IO switch register: " << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) 
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2)
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1)
+		<< _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+	std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) << std::endl;
+	std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2) << std::endl;
+	std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1) << std::endl;
+	std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+}
+
+uint64_t cProcess::ioStatus() {
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x3) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x2) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x1) << std::endl;
+	// std::cout << _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0) << std::endl;
+	return _mm256_extract_epi64(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::IO_SWITCH_REG)], 0x0);
+}
+
+IODevs cProcess::userInIOSwtch(uint8_t user_req)
+{
+	IODevs io_dev;
+	switch (user_req)
+	{
+	case 0b00000001:
+		io_dev = IODevs::HOST_MEM;
+		break;
+	case 0b00000010:
+		io_dev = IODevs::FPGA_DRAM;
+		break;
+	case 0b00000101:
+		io_dev = IODevs::RDMA_0_HOST_SEND;
+		break;
+	case 0b00001001:
+		io_dev = IODevs::RDMA_0_HOST_RECEIVE;
+		break;
+	case 0b00000110:
+		io_dev = IODevs::RDMA_0_CARD_SEND;
+		break;
+	case 0b00001010:
+		io_dev = IODevs::RDMA_0_CARD_RECEIVE;
+		break;
+	case 0b00010001:
+		io_dev = IODevs::RDMA_1_HOST_SEND;
+		break;
+	case 0b00100001:
+		io_dev = IODevs::RDMA_1_HOST_RECEIVE;
+		break;
+	case 0b00010010:
+		io_dev = IODevs::RDMA_1_CARD_SEND;
+		break;
+	case 0b00100010:
+		io_dev = IODevs::RDMA_1_CARD_RECEIVE;
+		break;
+	default:
+		io_dev = IODevs::ERROR_DEV;
+		break;
+	}
+
+	return io_dev;
 }
 
 // ======-------------------------------------------------------------------------------

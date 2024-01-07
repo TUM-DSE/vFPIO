@@ -37,7 +37,6 @@ class ibvQpConn {
 
 public:
     ibvQpConn(int32_t vfid, string ip_addr, uint32_t n_pages);
-    ibvQpConn(cProcess* cproc, string ip_addr, uint32_t n_pages);
     ~ibvQpConn();
 
     // Connection

@@ -28,6 +28,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <any>
+#include <functional>
 
 #include "cSched.hpp"
 #include "cThread.hpp"
