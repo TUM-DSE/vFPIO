@@ -55,6 +55,19 @@ switch $cfg(example) {
         }
     }
 
+    "rdma_rng" {
+        puts "rng example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_rng"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_rng/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_rng/ip.tcl
+        }
+    }
+
     "nw" {
         puts "nw example."
 
@@ -67,7 +80,20 @@ switch $cfg(example) {
             source $hw_dir/hdl/operators/examples/nw/ip.tcl
         }
     }
-    
+
+    "rdma_nw" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_nw"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl
+        }
+    }
+
     "matmul" {
         puts "matmul example."
 
@@ -78,6 +104,19 @@ switch $cfg(example) {
         if {[file exists $hw_dir/hdl/operators/examples/matmul/ip.tcl]} {
             puts "Execute script: ip.tcl"
             source $hw_dir/hdl/operators/examples/matmul/ip.tcl
+        }
+    }
+
+    "rdma_matmul" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_matmul"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl
         }
     }
 
@@ -94,6 +133,19 @@ switch $cfg(example) {
         }
     }
 
+    "rdma_gzip" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_gzip"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl
+        }
+    }
+
     "keccak" {
         puts "keccak example."
 
@@ -107,6 +159,19 @@ switch $cfg(example) {
         }
     }
 
+    "rdma_keccak" {
+        puts "keccak example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_keccak"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_keccak/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_keccak/ip.tcl
+        }
+    }
+
     "hls4ml" {
         puts "hls4ml example."
 
@@ -117,6 +182,19 @@ switch $cfg(example) {
         if {[file exists $hw_dir/hdl/operators/examples/hls4ml/ip.tcl]} {
             puts "Execute script: ip.tcl"
             source $hw_dir/hdl/operators/examples/hls4ml/ip.tcl
+        }
+    }
+
+    "rdma_hls4ml" {
+        puts "hls4ml example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_hls4ml"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_hls4ml/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_hls4ml/ip.tcl
         }
     }
 

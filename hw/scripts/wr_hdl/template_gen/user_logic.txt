@@ -196,7 +196,7 @@ always_comb begin
         8'b00000101: begin
             // RDMA_0 send from host
             `META_ASSIGN_CTS(rdma_0_rd_req, bpss_rd_req);
-            `META_ASSIGN_CTS(rdma_0_wr_req, bpss_wr_req);
+            `META_ASSIGN_CTS(bpss_tmp, bpss_wr_req);
             // `AXISR_ASSIGN_CTS(axis_switch_mem_0_src, axis_rdma_0_src);
             // `AXISR_ASSIGN_CTS(axis_host_0_sink, axis_switch_mem_0_sink);
             `AXISR_ASSIGN_CTS(axis_rdma_0_sink, axis_switch_mem_0_sink)
