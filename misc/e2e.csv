@@ -1,0 +1,49 @@
+app,throughput,platform
+aes,25.6,Host
+aes,534.146,Coyote
+aes,525.169,vFPIO
+sha256,34.97,Host
+sha256,536.439,Coyote
+sha256,527.385,vFPIO
+md5,34.74,Host
+md5,541.08,Coyote
+md5,531.873,vFPIO
+nw,88.369,Host
+nw,1153.26,Coyote
+nw,1138.54,vFPIO
+matmul,1.0129,Host
+matmul,393.877,Coyote
+matmul,404.063,vFPIO
+sha3,0.242,Host
+sha3,1.01717,Coyote
+sha3,1.03441,vFPIO
+rng,1.09843,Host
+rng,1.01771,Coyote
+rng,0.992682,vFPIO
+gzip,0.787,Host
+gzip,3.2463,Coyote
+gzip,3.37185,vFPIO
+ aes ,1.55,Host
+ aes ,16.08,Coyote
+ aes ,17.32,vFPIO
+ sha256 ,0.96,Host
+ sha256 ,13.18,Coyote
+ sha256 ,12.53,vFPIO
+ md5 ,12.21,Host
+ md5 ,17.49,Coyote
+ md5 ,14.65,vFPIO
+ nw ,120.08,Host
+ nw ,124.07,Coyote
+ nw ,124.18,vFPIO
+ matmul ,532.71,Host
+ matmul ,887.25,Coyote
+ matmul ,850.02,vFPIO
+ sha3 ,0.16,Host
+ sha3 ,2.45,Coyote
+ sha3 ,2.09,vFPIO
+ rng ,18.72,Host
+ rng ,37.41,Coyote
+ rng ,37.77,vFPIO
+ gzip ,2.21,Host
+ gzip ,7.02,Coyote
+ gzip ,7.83,vFPIO

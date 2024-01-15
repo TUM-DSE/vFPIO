@@ -39,7 +39,6 @@ driver_new
 *.bak
 *.csv
 *.out
-misc/
 synth/
 *_stub.v
 *_stub.vhdl
