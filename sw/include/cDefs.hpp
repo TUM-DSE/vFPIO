@@ -18,7 +18,7 @@ namespace fpga {
 // ======-------------------------------------------------------------------------------
 //#define VERBOSE_DEBUG_1 // Handle
 #define VERBOSE_DEBUG_2 // Reconfig
-//#define VERBOSE_DEBUG_3 // Perf
+#define VERBOSE_DEBUG_3 // Perf
 
 #ifdef VERBOSE_DEBUG_3
 #define VERBOSE_DEBUG_2
@@ -175,11 +175,7 @@ enum class CnfgAvxRegs : uint32_t {
     RDMA_POST_REG_1 = 18,
     RDMA_STAT_REG = 19,
     RDMA_CMPLT_REG = 20,
-    TCP_OPEN_CON_REG = 32,
-    TCP_OPEN_PORT_REG = 33,
-    TCP_OPEN_CON_STS_REG = 34,
-    TCP_OPEN_PORT_STS_REG = 35,
-    TCP_CLOSE_CON_REG = 36,   
+    // IO_SWITCH_REG = 32,
     CNTX_STAT_REG = 50,
     REQ_COUNT_REG = 51,
     TIME_STAT_REG = 52,
@@ -224,14 +220,13 @@ enum class CnfgLegRegs : uint32_t {
     RDMA_STAT_CMD_USED_REG = 41,
     RDMA_STAT_POSTED_REG = 42,
     RDMA_CMPLT_REG = 43,
-    IO_SWITCH_REG = 53,
+    CNTX_STAT_REG = 50,
+    REQ_COUNT_REG = 51,
+    TIME_STAT_REG = 52,
+    PRIO_STAT_REG = 54,
     STAT_DMA_REG = 64,
-    TCP_OPEN_CON_REG = 65,
-    TCP_OPEN_PORT_REG = 66,
-    TCP_OPEN_CON_STS_REG = 67,
-    TCP_OPEN_PORT_STS_REG = 68,
-    TCP_CLOSE_CON_REG = 69,
-    STAT_RDMA_REG = 128
+    IO_SWITCH_REG = 127,
+    STAT_RDMA_REG = 128,
 };
 
 /**
@@ -240,7 +235,10 @@ enum class CnfgLegRegs : uint32_t {
 enum ibvOpcode { 
     IBV_WR_RDMA_READ, 
     IBV_WR_RDMA_WRITE, 
-    IBV_WR_SEND
+    IBV_WR_SEND,
+    IBV_WR_IMMED_LOW,
+    IBV_WR_IMMED_MID,
+    IBV_WR_IMMED_HIGH
 };
 
 // ======-------------------------------------------------------------------------------
