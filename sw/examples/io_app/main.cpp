@@ -44,6 +44,7 @@ void prepare_sha256(void *mem, int bytes, csInvokeAll &invoke_op, uint64_t &inpu
     auto const plainHigh = 0x6bc1bee22e409f96;
     auto const cipherLow = 0xa89ecaf32466ef97;
     auto const cipherHigh = 0x3ad77bb40d7a3660;
+    // bytes = 512;
 
     for (int i = 0; i < bytes / 8; i++)
     {
@@ -75,6 +76,7 @@ void prepare_md5(void *mem, int bytes, csInvokeAll &invoke_op, uint64_t &input_b
 {
     auto const plainLow = 0xe93d7e117393172a;
     auto const plainHigh = 0x6bc1bee22e409f96;
+    // bytes = 512;
 
     for (int i = 0; i < bytes / 8; i++)
     {
@@ -105,6 +107,7 @@ void prepare_aes(void *mem, int bytes, csInvokeAll &invoke_op, uint64_t &input_b
 {
     auto const plainLow = 0xe93d7e117393172a;
     auto const plainHigh = 0x6bc1bee22e409f96;
+    // bytes = 512;
 
     for (int i = 0; i < bytes / 8; i++)
     {
@@ -140,7 +143,7 @@ void check_aes(void *mem, int bytes)
 
 void prepare_rng(void *mem, int bytes, csInvokeAll &invoke_op, uint64_t &input_bytes, uint64_t &output_bytes)
 {
-    const uint64_t size_shift_in = 6;
+    const uint64_t size_shift_in = 11;
     const uint64_t linear_in = 0;
     const uint64_t read_in = 0;
 
@@ -496,9 +499,12 @@ int main(int argc, char *argv[])
         // cproc.setCSR(keyHigh, 1);
     }
     app_bytes = input_bytes + output_bytes;
+    std::cout << "input bytes: " << input_bytes << " B" << std::endl;
+    std::cout << "output bytes: " << output_bytes << " B" << std::endl;
     std::cout << "app bytes: " << app_bytes << " B" << std::endl;
     std::cout << "app bytes: " << app_bytes / 1024  << " KB" << std::endl;
 
+    // return 0;
     // std::cout << "oper after assign: " << static_cast<std::underlying_type<CoyoteOper>::type>(invoke_op.oper) << std::endl;
     // csInvoke cs_invoke;
 
@@ -507,7 +513,7 @@ int main(int argc, char *argv[])
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    if (io_dev == IODevs::HOST_MEM) {
+    if (io_dev == IODevs::HOST_MEM && !fpga_mem) {
         std::cout << "Using host mem." << std::endl;
         invoke_op.oper = CoyoteOper::TRANSFER;
         invoke_op.stream = true;
@@ -519,19 +525,19 @@ int main(int argc, char *argv[])
         
         invoke_op.stream = false;
         // cproc.invoke(invoke_op);
-        cproc.invoke({CoyoteOper::OFFLOAD, (void *)mem, 64 * 64 * 8 * 2, true, true, 0, false});
+        cproc.invoke({CoyoteOper::OFFLOAD, (void *)mem, input_bytes, true, true, 0, false});
 
         invoke_op.oper = CoyoteOper::READ;
         // cproc.invoke(invoke_op);
-        cproc.invoke({CoyoteOper::READ, (void *)mem, 64 * 64 * 8 * 2, true, true, 0, false});
+        cproc.invoke({CoyoteOper::READ, (void *)mem, input_bytes, true, true, 0, false});
 
         invoke_op.oper = CoyoteOper::WRITE;
         // cproc.invoke(invoke_op);
-        cproc.invoke({CoyoteOper::WRITE, (void *)mem, 64 * 64 * 8, true, true, 0, false});
+        cproc.invoke({CoyoteOper::WRITE, (void *)mem, output_bytes, true, true, 0, false});
 
         invoke_op.oper = CoyoteOper::SYNC;
         // cproc.invoke(invoke_op);
-        cproc.invoke({CoyoteOper::SYNC, (void *)mem, 64 * 64 * 8, true, true, 0, false});
+        cproc.invoke({CoyoteOper::SYNC, (void *)mem, output_bytes, true, true, 0, false});
 
     }
 

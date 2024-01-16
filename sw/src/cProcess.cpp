@@ -639,7 +639,6 @@ void cProcess::ibvPostSend(ibvQp *qp, ibvSendWr *wr) {
 					offs_1 = static_cast<uint64_t>(qp->local.vaddr + wr->sg_list[i].type.rdma.local_offs); 
 					offs_2 = static_cast<uint64_t>(qp->remote.vaddr + wr->sg_list[i].type.rdma.remote_offs); 
 					offs_3 = static_cast<uint64_t>(wr->sg_list[i].type.rdma.len);
-					std::cout << "wr->isRDMA()" << std::endl;
 
                     postCmd(offs_3, offs_2, offs_1, offs_0);
                 }
