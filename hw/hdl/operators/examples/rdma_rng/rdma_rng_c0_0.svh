@@ -1,4 +1,4 @@
-// I/O
+
 AXI4SR axis_rdma_0_sink2();
 
 // I/O
@@ -48,7 +48,7 @@ assign bpss_tmp.valid                   = rdma_0_wr_req.valid;
 assign rdma_0_wr_req.ready              = bpss_tmp.ready;
 
 assign bpss_tmp.data.vaddr = rdma_0_wr_req.data.vaddr;
-assign bpss_tmp.data.len = 128;
+assign bpss_tmp.data.len = 2047;
 assign bpss_tmp.data.stream = rdma_0_wr_req.data.stream;
 assign bpss_tmp.data.sync = rdma_0_wr_req.data.sync;
 assign bpss_tmp.data.ctl = rdma_0_wr_req.data.ctl;
@@ -60,10 +60,9 @@ assign bpss_tmp.data.rsrvd = rdma_0_wr_req.data.rsrvd;
 `endif
 
 
-gzip gzip_inst (
+rng_axis_wrapper rng_inst (
     .aclk(aclk),
     .aresetn(aresetn),
-    
     .axis_in(axis_sink_int),
     .axis_out(axis_src_int)
-    );
+);

@@ -56,6 +56,132 @@ switch $cfg(example) {
         add_files "$hw_dir/hdl/operators/examples/perf_rdma/"
     }
 
+    "bram_app" {
+        puts "BRAM access example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/bram_app"
+    }
+
+    "rdma_bram" {
+        puts "BRAM access example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_bram"
+    }
+
+    "rdma_aes" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_aes/"
+    }
+
+    "rdma_sha256" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_sha256/"
+    }
+
+    "rdma_md5" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_md5/"
+    }
+
+    "rdma_rng" {
+        puts "rng example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_rng"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_rng/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_rng/ip.tcl
+        }
+    }
+
+    "rdma_nw" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_nw"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl
+        }
+    }
+
+    "rdma_matmul" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_matmul"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl
+        }
+    }
+
+    "rdma_gzip" {
+        puts "RDMA host DRAM example (over PCIe)"
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_gzip"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl
+        }
+    }
+
+    "rdma_keccak" {
+        puts "keccak example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_keccak"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_keccak/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_keccak/ip.tcl
+        }
+    }
+
+    "hls4ml" {
+        puts "hls4ml example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/hls4ml"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/hls4ml/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/hls4ml/ip.tcl
+        }
+    }
+
+    "rdma_hls4ml" {
+        puts "hls4ml example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/rdma_hls4ml"  
+
+        # Execute scripts, e.g. for IP generation
+        if {[file exists $hw_dir/hdl/operators/examples/rdma_hls4ml/ip.tcl]} {
+            puts "Execute script: ip.tcl"
+            source $hw_dir/hdl/operators/examples/rdma_hls4ml/ip.tcl
+        }
+    }
+
     "perf_tcp" {
         puts "TCP/IP benchmarking"
         
@@ -103,223 +229,6 @@ switch $cfg(example) {
             }
         }
     }
-
-    "sha256" {
-        puts "SHA256 example."
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/sha256"  
-    }
-
-    "md5" {
-        puts "MD5 example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/md5"  
-    }
-
-    "rng" {
-        puts "rng example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rng"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/rng/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/rng/ip.tcl
-        }
-    }
-
-    "nw" {
-        puts "nw example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/nw"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/nw/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/nw/ip.tcl
-        }
-    }
-
-    "matmul" {
-        puts "matmul example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/matmul"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/matmul/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/matmul/ip.tcl
-        }
-    }
-
-    "gzip" {
-        puts "gzip example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/gzip"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/gzip/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/gzip/ip.tcl
-        }
-    }
-
-    "keccak" {
-        puts "keccak example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/keccak"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/keccak/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/keccak/ip.tcl
-        }
-    }
-
-    "hls4ml" {
-        puts "hls4ml example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/hls4ml"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/hls4ml/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/hls4ml/ip.tcl
-        }
-    }
-
-    "sha256hls" {
-        puts "sha256hls example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/sha256hls"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/sha256hls/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/sha256hls/ip.tcl
-        }
-    }
-
-    "io_switch_ndp" {
-        puts "IO switch example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/io_switch_ndp"  
-    }
-
-    "rdma_aes" {
-        puts "RDMA host DRAM example (over PCIe)"
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_aes/"
-    }
-
-    "rdma_sha256" {
-        puts "RDMA host DRAM example (over PCIe)"
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_sha256/"
-    }
-
-    "rdma_md5" {
-        puts "RDMA host DRAM example (over PCIe)"
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_md5/"
-    }
-
-    "rdma_nw" {
-        puts "rdma_nw example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_nw"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/rdma_nw/ip.tcl
-        }
-    }
-
-    "rdma_matmul" {
-        puts "rdma_matmul example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_matmul"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/rdma_matmul/ip.tcl
-        }
-    }
-
-    "rdma_gzip" {
-        puts "rdma_gzip example."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/examples/rdma_gzip"  
-
-        # Execute scripts, e.g. for IP generation
-        if {[file exists $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl]} {
-            puts "Execute script: ip.tcl"
-            source $hw_dir/hdl/operators/examples/rdma_gzip/ip.tcl
-        }
-    }
-
-    "resource_usage" {
-        puts "simple user logic used to measure resource usage."
-
-        # Add source files
-        add_files "$hw_dir/hdl/operators/resource_usage"
-    }
-
-    "pr_hbm_part1" {
-        puts "Partial reconf example with HBM (part 1)"
-
-        add_files "$hw_dir/hdl/operators/pr_hbm/part1/rtl"
-        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/pr_hbm/part1/constraints"
-
-        for {set i 0}  {$i < $cfg(n_config)} {incr i} {
-            set cmd "add_files -norecurse $hw_dir/hdl/operators/pr_hbm/part1/rtl/pr_hbm_part1_c$i\_0.svh -of_objects [get_reconfig_modules design_user_wrapper_c$i\_0]"
-            eval $cmd
-
-            set cmd "import_files $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i -of_objects [get_reconfig_modules design_user_wrapper_c$i\_0]"
-            eval $cmd
-
-            # Execute scripts, e.g. for IP generation
-            if {[file exists $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i.tcl]} {
-                puts "Execute script: c$i.tcl"
-                source $hw_dir/hdl/operators/pr_hbm/part1/rtl/c$i.tcl
-            }
-        }
-    }
-
-    "pr_hbm_sha256" {
-        puts "sha256hls with PR and HBM options."
-
-        # Add source files
-        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/pr_hbm/sha256hls/constraints"
-        add_files "$hw_dir/hdl/operators/pr_hbm/sha256hls/rtl"
-
-        set cmd "add_files -norecurse $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/pr_hbm_sha256_c0_0.svh  -of_objects [get_reconfig_modules design_user_wrapper_c0_0]"        
-        eval $cmd
-
-        set cmd "add_files $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/c0  -of_objects [get_reconfig_modules design_user_wrapper_c0_0]"
-        eval $cmd
-
-        # Execute scripts, e.g. for IP generation
-        puts "Execute script: c$i.tcl"
-        source $hw_dir/hdl/operators/pr_hbm/sha256hls/rtl/c0.tcl
-    } 
 
     default {
         puts "No example chosen"

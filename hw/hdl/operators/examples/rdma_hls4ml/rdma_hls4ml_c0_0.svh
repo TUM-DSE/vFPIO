@@ -48,7 +48,7 @@ assign bpss_tmp.valid                   = rdma_0_wr_req.valid;
 assign rdma_0_wr_req.ready              = bpss_tmp.ready;
 
 assign bpss_tmp.data.vaddr = rdma_0_wr_req.data.vaddr;
-assign bpss_tmp.data.len = 128;
+assign bpss_tmp.data.len = 320;
 assign bpss_tmp.data.stream = rdma_0_wr_req.data.stream;
 assign bpss_tmp.data.sync = rdma_0_wr_req.data.sync;
 assign bpss_tmp.data.ctl = rdma_0_wr_req.data.ctl;
@@ -59,8 +59,7 @@ assign bpss_tmp.data.vfid = rdma_0_wr_req.data.vfid;
 assign bpss_tmp.data.rsrvd = rdma_0_wr_req.data.rsrvd;
 `endif
 
-
-gzip gzip_inst (
+hls4ml_wrapper hls4ml_wrapper_inst (
     .aclk(aclk),
     .aresetn(aresetn),
     
