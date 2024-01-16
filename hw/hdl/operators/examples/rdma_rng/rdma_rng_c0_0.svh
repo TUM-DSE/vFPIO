@@ -15,7 +15,7 @@ assign bpss_tmp.valid                   = rdma_0_wr_req.valid;
 assign rdma_0_wr_req.ready              = bpss_tmp.ready;
 
 assign bpss_tmp.data.vaddr = rdma_0_wr_req.data.vaddr;
-assign bpss_tmp.data.len = 63;
+assign bpss_tmp.data.len = 2047;
 assign bpss_tmp.data.stream = rdma_0_wr_req.data.stream;
 assign bpss_tmp.data.sync = rdma_0_wr_req.data.sync;
 assign bpss_tmp.data.ctl = rdma_0_wr_req.data.ctl;

@@ -218,6 +218,13 @@ switch $cfg(example) {
         add_files "$hw_dir/hdl/operators/examples/bram_app"
     }
 
+    "host_baseline" {
+        puts "IO switch example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/host_baseline"  
+    }
+
     "perf_dram" {
         puts "Striping DRAM benchmark."
 
