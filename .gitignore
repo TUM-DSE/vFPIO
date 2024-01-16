@@ -37,7 +37,6 @@ driver_new
 *.old
 *.bk
 *.bak
-*.csv
 *.out
 synth/
 *_stub.v

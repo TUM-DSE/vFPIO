@@ -31,7 +31,7 @@ g = sns.catplot(
     errorbar="sd", palette=palette_console, alpha=.8,
     edgecolor='black',
     linewidth=1,
-    aspect=4, 
+    aspect=3.8, 
     # aspect=1.2, 
     width=0.5,
     # height=5,
@@ -71,7 +71,7 @@ ax.annotate(
     # "Lower is better ↓",
     "Higher is better ↑",
     xycoords="axes points",
-    xy=(550, 242),
+    xy=(600, 242),
     # xytext=xytext,
     #xytext=(-100, -27),
     # fontsize=FONT_SIZE,
@@ -81,7 +81,7 @@ ax.annotate(
 
 g.despine(right=False, top=False, offset={'top':1.5})
 # g.tight_layout()
-g.set_axis_labels("", "Throughput [MB/s]")
+g.set_axis_labels("", "Throughput [MiB/s]")
 # g.legend.set_title("Platform")
 
 
@@ -130,7 +130,7 @@ ax.patch.set_edgecolor('black')
 plt.tight_layout()
 plt.yscale('log')
 # plt.xticks(rotation=15) 
-plt.ylim(top=1600)
+plt.ylim(top=2000)
 # sns.move_legend(g, "lower left", bbox_to_anchor=(.55, .45), title='Platform')
 # g.fig.subplots_adjust(top=0.92, wspace = 0.1)
 
