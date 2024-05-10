@@ -8,6 +8,7 @@ import logging
 import pathlib
 import argparse
 import subprocess
+from pathlib import Path
 from datetime import datetime
 # from matplotlib import pyplot as plt
 
@@ -47,10 +48,12 @@ def parse_output(filename):
 def reprogram_fpga(bit_path):
     print("reprogramming fpga")
     logging.info("reprogramming fpga")
-    # TODO: do not use absolute address, but ~/
+
+    script_path = os.path.join(Path.home(), "program_fpga.sh")
+
     cmd = [
         "bash",
-        "/home/chenjiyang/program_fpga.sh",
+        script_path,
         bit_path
     ]
 
@@ -120,7 +123,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
                     stdout=f,
                     stderr=f,
                     env=os.environ,
-                    timeout = 5,
+                    timeout = 10,
                     check=True,
                 )
             except:
@@ -333,7 +336,7 @@ def main():
         "gzip_coyote": gzip_coyote
     }
 
-    Exp_6_1_vfpga_list = {
+    Exp_6_1_vfpio_list = {
         "aes_vfpio": aes_vfpio,
         "sha256_vfpio": sha256_vfpio,
         "md5_vfpio": md5_vfpio,
@@ -366,9 +369,9 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             run_benchmark(exp_res_path, bench_object, reprogram)
-    elif exp == "Exp_6_1_vfpga_list":
-        print("Running Exp_6_1_vfpga_list example.")
-        for bench_name, bench_object in Exp_6_1_vfpga_list.items():
+    elif exp == "Exp_6_1_vfpio_list":
+        print("Running Exp_6_1_vfpio_list example.")
+        for bench_name, bench_object in Exp_6_1_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             run_benchmark(exp_res_path, bench_object, reprogram)
