@@ -1,0 +1,511 @@
+{
+    "ltx_root": {
+        "version": 4,
+        "minor": 0,
+        "ltx_data": [
+            {
+                "name": "EDA_PROBESET",
+                "active": true,
+                "debug_cores": [
+                    {
+                        "type": "XSDB_V3",
+                        "name": "dbg_hub",
+                        "spec": "labtools_xsdbm_v3",
+                        "clk_input_freq_hz": "322265766"
+                    },
+                    {
+                        "type": "VIO_V2",
+                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/inst_vio_link",
+                        "spec": "labtools_vio_v3",
+                        "ipName": "vio",
+                        "core_location": {
+                            "user_chain": 1,
+                            "slave_index": 0,
+                            "bscan_switch_index": 0
+                        },
+                        "uuid": "8DEC89CAB1C65DA494DFA6F673F59C05",
+                        "pins": [
+                            {
+                                "name": "probe_in0",
+                                "id": 0,
+                                "type": "DATA",
+                                "direction": "IN",
+                                "isVector": false,
+                                "leftIndex": 0,
+                                "rightIndex": 0,
+                                "portIndex": 0,
+                                "nets": [
+                                    {
+                                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/stat_rx_aligned",
+                                        "isBus": false
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "probe_in1",
+                                "id": 1,
+                                "type": "DATA",
+                                "direction": "IN",
+                                "isVector": true,
+                                "leftIndex": 0,
+                                "rightIndex": 3,
+                                "portIndex": 1,
+                                "nets": [
+                                    {
+                                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate",
+                                        "isBus": true,
+                                        "subnets": [
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[3]",
+                                                "parentNetId": 1
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[2]",
+                                                "parentNetId": 2
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[1]",
+                                                "parentNetId": 3
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[0]",
+                                                "parentNetId": 4
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "probe_in2",
+                                "id": 2,
+                                "type": "DATA",
+                                "direction": "IN",
+                                "isVector": true,
+                                "leftIndex": 0,
+                                "rightIndex": 2,
+                                "portIndex": 2,
+                                "nets": [
+                                    {
+                                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/stat_rx_bad_fcs",
+                                        "isBus": true,
+                                        "subnets": [
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/stat_rx_bad_fcs[2]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/stat_rx_bad_fcs[1]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/stat_rx_bad_fcs[0]"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "VIO_V2",
+                        "name": "inst_network_top_0/inst_network_stack/inst_vio_ip",
+                        "spec": "labtools_vio_v3",
+                        "ipName": "vio",
+                        "core_location": {
+                            "user_chain": 1,
+                            "slave_index": 1,
+                            "bscan_switch_index": 0
+                        },
+                        "uuid": "BA7AA909F18B5188AC37E256A163D221",
+                        "pins": [
+                            {
+                                "name": "probe_in0",
+                                "id": 3,
+                                "type": "DATA",
+                                "direction": "IN",
+                                "isVector": true,
+                                "leftIndex": 0,
+                                "rightIndex": 31,
+                                "portIndex": 0,
+                                "nets": [
+                                    {
+                                        "name": "inst_network_top_0/inst_network_stack/local_ip_address",
+                                        "isBus": true,
+                                        "subnets": [
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[31]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[30]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[29]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[28]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[27]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[26]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[25]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[24]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[23]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[22]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[21]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[20]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[19]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[18]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[17]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[16]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[15]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[14]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[13]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[12]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[11]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[10]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[9]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[8]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[7]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[6]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[5]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[4]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[3]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[2]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[1]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_ip_address[0]"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "probe_in1",
+                                "id": 4,
+                                "type": "DATA",
+                                "direction": "IN",
+                                "isVector": true,
+                                "leftIndex": 0,
+                                "rightIndex": 47,
+                                "portIndex": 1,
+                                "nets": [
+                                    {
+                                        "name": "inst_network_top_0/inst_network_stack/local_mac_address",
+                                        "isBus": true,
+                                        "subnets": [
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[47]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[46]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[45]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[44]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[43]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[42]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[41]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[40]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[39]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[38]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[37]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[36]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[35]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[34]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[33]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[32]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[31]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[30]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[29]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[28]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[27]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[26]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[25]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[24]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[23]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[22]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[21]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[20]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[19]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[18]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[17]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[16]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[15]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[14]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[13]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[12]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[11]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[10]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[9]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[8]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[7]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[6]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[5]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[4]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[3]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[2]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[1]"
+                                            },
+                                            {
+                                                "name": "inst_network_top_0/inst_network_stack/local_mac_address[0]"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                "parent_nets": [
+                    {
+                        "id": 1,
+                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[3]",
+                        "state_reg": [
+                            {
+                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate_reg[3]",
+                                "states": [
+                                    {
+                                        "name": "STATE_RX_IDLE",
+                                        "val": "0000"
+                                    },
+                                    {
+                                        "name": "STATE_GT_LOCKED",
+                                        "val": "0001"
+                                    },
+                                    {
+                                        "name": "STATE_WAIT_RX_ALIGNED",
+                                        "val": "0010"
+                                    },
+                                    {
+                                        "name": "STATE_PKT_TRANSFER_INIT",
+                                        "val": "0011"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[2]",
+                        "state_reg": [
+                            {
+                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate_reg[2]",
+                                "states": [
+                                    {
+                                        "name": "STATE_RX_IDLE",
+                                        "val": "0000"
+                                    },
+                                    {
+                                        "name": "STATE_GT_LOCKED",
+                                        "val": "0001"
+                                    },
+                                    {
+                                        "name": "STATE_WAIT_RX_ALIGNED",
+                                        "val": "0010"
+                                    },
+                                    {
+                                        "name": "STATE_PKT_TRANSFER_INIT",
+                                        "val": "0011"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[1]",
+                        "state_reg": [
+                            {
+                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate_reg[1]",
+                                "states": [
+                                    {
+                                        "name": "STATE_RX_IDLE",
+                                        "val": "0000"
+                                    },
+                                    {
+                                        "name": "STATE_GT_LOCKED",
+                                        "val": "0001"
+                                    },
+                                    {
+                                        "name": "STATE_WAIT_RX_ALIGNED",
+                                        "val": "0010"
+                                    },
+                                    {
+                                        "name": "STATE_PKT_TRANSFER_INIT",
+                                        "val": "0011"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate[0]",
+                        "state_reg": [
+                            {
+                                "name": "inst_network_top_0/inst_network_module/cmac_wrapper_inst/rx_prestate_reg[0]",
+                                "states": [
+                                    {
+                                        "name": "STATE_RX_IDLE",
+                                        "val": "0000"
+                                    },
+                                    {
+                                        "name": "STATE_GT_LOCKED",
+                                        "val": "0001"
+                                    },
+                                    {
+                                        "name": "STATE_WAIT_RX_ALIGNED",
+                                        "val": "0010"
+                                    },
+                                    {
+                                        "name": "STATE_PKT_TRANSFER_INIT",
+                                        "val": "0011"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

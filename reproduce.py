@@ -49,11 +49,9 @@ def reprogram_fpga(bit_path):
     print("reprogramming fpga")
     logging.info("reprogramming fpga")
 
-    script_path = os.path.join(Path.home(), "program_fpga.sh")
-
     cmd = [
         "bash",
-        script_path,
+        "./program_fpga.sh",
         bit_path
     ]
 

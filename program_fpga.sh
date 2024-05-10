@@ -3,7 +3,7 @@ echo "programming $1"
 sudo rmmod coyote_drv
 sudo bash sw/util/hot_reset.sh "e1:00.0"
 
-xilinx-shell $HOME/run_vivado.sh $1
+xilinx-shell ./run_vivado.sh $1
 #echo "test"
 sudo bash sw/util/hot_reset.sh "e1:00.0"
 #sudo insmod driver/coyote_drv.ko

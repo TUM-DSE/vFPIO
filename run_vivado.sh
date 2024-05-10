@@ -1,2 +1,2 @@
 
-vivado -mode tcl -source $HOME/auto_fpga.tcl -tclargs $HOME/$1
+vivado -mode tcl -source ./auto_fpga.tcl -tclargs ./bitstreams/$1
