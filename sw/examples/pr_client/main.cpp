@@ -68,6 +68,24 @@ void serverless_write_sock(const char* const str) {
     printf("got response: %s\n", msg);
 }
 
+void serverless_write_sock_no_response(const char* const str) {
+    if(strlen(str) >= MSG_SIZE) {
+        printf("message too long\n");
+        return;
+    }
+
+    char msg[MSG_SIZE];
+    memset(msg, 0, sizeof(msg));
+    strncpy(msg, str, MSG_SIZE);
+
+    printf("writing: %s\n", msg);
+
+    if(write(sockfd, msg, MSG_SIZE) == -1) {
+        perror("write() error");
+        return;
+    }
+}
+
 void serverless_set_csr(uint32_t offset, uint64_t value)
 {
     if(sockfd<0) {
@@ -119,7 +137,7 @@ void serverless_exit() {
         return;
     }
 
-    serverless_write_sock("TEARDOWN");
+    serverless_write_sock_no_response("TEARDOWN");
 }
 
 
@@ -432,6 +450,35 @@ void check_md5(void *mem, int bytes)
     // printf("Check sha256: result is %s\n", correct ? "correct :)" : "wrong !!");
 }
 
+void prepare_rng(void *mem, int bytes)
+{
+
+    const uint64_t size_shift_in = 11;
+    const uint64_t linear_in = 0;
+    const uint64_t read_in = 0;
+
+    ((uint64_t*)mem)[0] = size_shift_in;
+    ((uint64_t*)mem)[1] = linear_in;
+    ((uint64_t*)mem)[2] = read_in;
+
+    serverless_map_memory(mem, bytes, 64, 64 * (1 << (size_shift_in - 6)) - 1);
+    serverless_load_bitstream(2);
+    // serverless_set_csr(0, keyLow);
+    // serverless_set_csr(1, keyHigh);
+
+}
+
+void check_rng(void *mem, int bytes)
+{
+    bool correct=true;
+
+    // for(int i=0; i<(int)(bytes/sizeof(uint64_t)); i++) {
+    //     correct &= ((uint64_t*)mem)[i] == (i%2?cipherHigh:cipherLow);
+    // }
+
+    // printf("Check sha256: result is %s\n", correct ? "correct :)" : "wrong !!");
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -448,6 +495,8 @@ int main(int argc, char* argv[])
     else if(!strcmp(argv[1], "hls4ml")) op = 7;
     else if(!strcmp(argv[1], "sha256")) op = 8;
     else if(!strcmp(argv[1], "md5")) op = 9;
+    else if(!strcmp(argv[1], "rng")) op = 10;
+    else if(!strcmp(argv[1], "teardown")) op = 11;
     
     printf("op = %d\n", op);
     if(op<0) {
@@ -460,7 +509,12 @@ int main(int argc, char* argv[])
 
     void *mem = memUnaligned + ALIGNMENT - ((int64_t)memUnaligned)%ALIGNMENT;
 
-    for (int i = 0; i < 10; i++) {
+    if(op == 11) {
+        serverless_exit();
+        return 0;
+    }
+
+    for (int i = 0; i < 2; i++) {
         printf("i = %d\n", i);
         puts("-------------------------------");
         // op = 8;
@@ -475,21 +529,15 @@ int main(int argc, char* argv[])
         if(op==7) prepare_hls4ml(mem, SIZE);
         if(op==8) prepare_sha256(mem, SIZE);
         if(op==9) prepare_md5(mem, SIZE);
+        if(op==10) prepare_rng(mem, SIZE);
         
-        prepare_sha256(mem, SIZE);
-        //prepare_sha3(mem, SIZE);
-        // serverless_exec();
-        // if(op==0) check_aes(mem, SIZE);
-        // if(op==1) check_addmul(mem, SIZE);
-        // if(op==2) check_sha3(mem, SIZE);
-        // if(op==3) check_matmul(mem, SIZE);
-        // if(op==4) check_gzip(mem, SIZE);
-        // if(op==5) check_nw(mem, SIZE);
-        // if(op==6) check_sha256hls(mem, SIZE);
-        // if(op==7) check_hls4ml(mem, SIZE);
-        // if(op==8) check_sha256(mem, SIZE);
-        // if(op==9) check_md5(mem, SIZE);
-        // //check_sha3(mem, SIZE);
+        serverless_exec();
+        sleep(1);
+
+        // choose one unused operator in the experiment for reloading the pr bitstream
+        prepare_addmul(mem, SIZE);
+        serverless_exec();
+
         puts("guest: finish...\n");        
         sleep(1);
     }

@@ -975,6 +975,8 @@ void cProcess::printDebug()
 		std::cout << std::setw(35) << "Sync reads sent: \t" <<  _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::STAT_REG)], 0x5) << std::endl; 
 		std::cout << std::setw(35) << "Sync writes sent: \t" <<  _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::STAT_REG)], 0x6) << std::endl; 
 		std::cout << std::setw(35) << "Page faults: \t" <<  _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::STAT_REG)], 0x7) << std::endl; 
+		std::cout << std::setw(35) << "Context switch : \t" <<  _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::CNTX_STAT_REG)], 0x0) << std::endl; 
+		std::cout << std::setw(35) << "Time cycle : \t" <<  _mm256_extract_epi32(cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::TIME_STAT_REG)], 0x0) << std::endl; 
 	} else {
 #endif
 		std::cout << std::setw(35) << "Read command FIFO used: \t" <<  cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::STAT_CMD_USED_RD_REG)] << std::endl;

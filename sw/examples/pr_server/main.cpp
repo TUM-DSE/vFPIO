@@ -90,13 +90,14 @@ void receiver(int cfd) {
     int bytes;
     while((bytes = read(cfd, buf, MSG_SIZE)) > 0) {
         if(teardown) {
+            Printer(cfd)<<"teardown!!!"<< endl;
             return;
         }
 
         auto cmd = string(buf, bytes);
         auto split = tokenize(cmd);
 
-        Printer(cfd)<<"Received cmd: "<<cmd<<endl;//" -> ";
+        Printer(cfd)<<"Received cmd: "<< cmd << endl;
 
         if(split.size() >= 2 && split[0]==OP_BITSTREAM) {
             int config = stoi(split[1]);
@@ -152,14 +153,9 @@ void receiver(int cfd) {
             
             Printer(cfd)<<"Exiting"<<endl;
             sendOk(cfd);
-            teardown=true;
-            taskQueue.teardown();
-
-            for(auto c : consumers) {
-                // destruction of consumer will eventually instruct the driver to free mapped memory
-                c->join();
-                delete c;
-            }
+            raise(SIGINT);
+            teardown = 1;
+            return;
         }
         
 
@@ -171,7 +167,7 @@ int main(int argc, char *argv[])
 {
     struct sigaction int_handler;
     int_handler.sa_handler=sig_handler;
-    sigaction(SIGINT,&int_handler,0);
+    // sigaction(SIGINT,&int_handler,0);
 
 //
 //    boost::interprocess::named_mutex::remove("vfpga_mtx_user_" + vfid);

@@ -4,26 +4,55 @@ import sys
 import os
 import json
 import time
+import copy
 import logging
 import pathlib
 import argparse
 import subprocess
 from pathlib import Path
+from threading import Thread, Timer
 from datetime import datetime
+from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, Callable
 # from matplotlib import pyplot as plt
 
 class benchmark:
-    def __init__(self, name, bitstream, sw, options=[], input_size=1024, output_size=1024, repeat=10):
+    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], input_size=1024, output_size=1024, repeat=10, app_list=[]):
         self.name = name
         self.bitstream = bitstream
         self.input_size = input_size
         self.output_size = output_size
         self.sw = sw
         self.options = options
+        self.sw_2 = sw_2
+        self.options_2 = options_2
         self.repeat = repeat
+        self.app_list = app_list
+
 
 def average(lst):
     return sum(lst) / len(lst)
+
+
+def run(
+    cmd: List[str],
+    extra_env: Dict[str, str] = {},
+    stdout: int = subprocess.PIPE,
+    input: Optional[str] = None,
+    check: bool = True
+) -> "subprocess.CompletedProcess[Text]":
+    env = os.environ.copy()
+    env.update(extra_env)
+    env_string = []
+    for k, v in extra_env.items():
+        env_string.append(f"{k}={v}")
+    print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
+    return subprocess.run(
+        cmd, cwd=ROOT, stdout=stdout, check=check, env=env, text=True, input=input
+    )
+
+def remote_cmd(ssh_host: str, args: List[str]) -> None:
+    run(["ssh", ssh_host, "--"] + args)
+
 
 def parse_output(filename):
     res = []
@@ -133,6 +162,38 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
 
     return
 
+def pr_client(bench_object, out_file):
+    sw_2_dir = bench_object.sw_2
+    options_2 = bench_object.options_2
+    app_list = bench_object.app_list
+
+    cmd_2 = [
+        "sudo",
+        os.path.join(os.path.realpath("."), sw_2_dir, "main"),
+    ]
+
+    for app in app_list:
+        cmd_app = cmd_2 + [app]
+        print("cmd_app: ")
+        print(cmd_app)
+        with open(out_file, "w+") as f:
+            try: 
+                client_process = subprocess.run(
+                    cmd_app,
+                    stdout=f,
+                    stderr=f,
+                    env=os.environ,
+                    timeout = 10,
+                    text = True,
+                    # check=True,
+                )
+                print("finished running " + app)
+                # print(client_process.stdout)
+            except:
+                print("Something is wrong with the pr client application.")
+                exit()
+
+
 def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     # process benchmark related data
 
@@ -140,21 +201,31 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     bistream_file = bench_object.bitstream
     sw_dir = bench_object.sw
     options = bench_object.options
+    sw_2_dir = bench_object.sw_2
+    options_2 = bench_object.options_2
     repeat = bench_object.repeat
+    app_list = bench_object.app_list
 
     # get timestamp
     now = datetime.now()
     timestamp = now.strftime("%m_%d_%H_%M")
 
     # record experiment data 
-    file_name = bench_name + "_" + timestamp + ".log"
-    out_file = os.path.join(exp_res_path, file_name)
+    server_file_name = bench_name + "_" + "server_" + timestamp + ".log"
+    server_out_file = os.path.join(exp_res_path, server_file_name)
 
-    cmd = [
-        "sudo",
-        os.path.join(os.path.realpath("."), sw_dir, "main"),
-    ]
+    client_file_name = bench_name + "_" + "client_" + timestamp + ".log"
+    client_out_file = os.path.join(exp_res_path, client_file_name)
+
+    cmd = ["sudo"]
     cmd += options
+    cmd += [os.path.join(os.path.realpath("."), sw_dir, "main")]
+
+    cmd_2 = [
+        "sudo",
+        os.path.join(os.path.realpath("."), sw_2_dir, "main"),
+    ]
+
     print("Running benchmark: " + bench_name)
     print("bistream: " + bistream_file)
     print("cmd: ")
@@ -164,30 +235,35 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     logging.info("bistream: " + bistream_file)
     logging.info("cmd: ")
     logging.info(cmd)
-    print("output file: " + out_file)
+    print("output file: " + server_out_file)
 
     if reprogram:
         reprogram_fpga(bistream_file)
 
     print("Running host application.")
-    
-    with open(out_file, "w+") as f:
-        for i in range(repeat):
-            try: 
-                subprocess.run(
-                    cmd,
-                    stdout=f,
-                    stderr=f,
-                    env=os.environ,
-                    timeout = 5,
-                    check=True,
-                )
-            except:
-                print("Something is wrong with the host application. Please reprogram the FPGA.")
-                exit()
-        time.sleep(1)
 
-    parse_output(out_file)
+    with open(server_out_file, "w+") as f:
+        server_process = subprocess.Popen(cmd,
+                        stdout = f, 
+                        stderr = f,
+                        # stdout = subprocess.PIPE, 
+                        # stderr = subprocess.PIPE,
+                        text = True,
+                        )
+            
+        thread = Thread(target=pr_client, args=(bench_object, client_out_file))
+
+        thread.start()
+        output, errors = server_process.communicate()
+
+        print('Waiting for the thread...')
+        thread.join()
+
+        print("about to kill")
+        server_process.kill()
+        # print(output)
+
+    # parse_output(out_file)
 
     return
 
@@ -202,11 +278,9 @@ def main():
 
     reprogram = args.reprogram
 
-    
     # Create directory to hold experiment data
     exp_res_path = os.path.join(os.path.realpath("."), "exp-results")
-    pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
-
+    # pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
 
     aes_host = benchmark("aes_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "aes"])
     sha256_host = benchmark("sha256_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "sha256"])
@@ -301,10 +375,26 @@ def main():
 
     # Partial reconfiguration 
     # in /scratch/chenjiyang/Coyote_faas
-    pr_part1_coyote = benchmark("pr_part1_coyote", "cyt_top_caribou_u280_host_1218", "build_pr_server_sw", "build_pr_client_sw")
-    pr_part2_coyote = benchmark("pr_part2_coyote", "cyt_top_caribou3_u280_host_1218", "build_pr_server_sw", "build_pr_client_sw")
-    pr_part1_vfpio = benchmark("pr_part1_vfpio", "cyt_top_caribou_u280_hbm_1214", "build_pr_server_sw", "build_pr_client_sw")
-    pr_part1_vfpio = benchmark("pr_part1_vfpio", "cyt_top_caribou3_u280_hbm_1218", "build_pr_server_sw", "build_pr_client_sw")
+    pr_part1_host = benchmark("pr_part1_coyote", "cyt_top_caribou_u280_host_1218", "build_pr_server_sw", 
+                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_host")], "build_pr_client_sw", 
+                                app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
+    pr_part2_host = benchmark("pr_part2_coyote", "cyt_top_caribou3_u280_host_1218", "build_pr_server_sw", 
+                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_host")], "build_pr_client_sw", 
+                                app_list = ["sha256", "md5", "rng", "teardown"])
+    pr_part1_hbm = benchmark("pr_part1_vfpio", "cyt_top_caribou_u280_hbm_1214", "build_pr_server_sw", 
+                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_hbm")], "build_pr_client_sw", 
+                                app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
+    pr_part2_hbm = benchmark("pr_part2_vfpio", "cyt_top_caribou3_u280_hbm_1218", "build_pr_server_sw", 
+                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_hbm")], "build_pr_client_sw", 
+                                app_list = ["sha256", "md5", "rng", "teardown"])
+
+
+    sched_perf_host_coyote = benchmark("sched_perf_host_coyote", "cyt_top_perf_host_strm_0511", "build_perf_host_sw", []);
+    sched_perf_host_vfpio = benchmark("sched_perf_host_vfpio", "cyt_top_perf_host_io_0511", "build_perf_host_sw", []);
+
+
+    sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0511", "build_perf_fpga_sw", []);
+    sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", []);
     
 
     simple_list = {
@@ -345,15 +435,34 @@ def main():
         "gzip_vfpio": gzip_vfpio
     }
 
+    Exp_6_2_coyote_list = {
+        "pr_part1_host": pr_part1_host,
+        # "pr_part2_coyote": pr_part2_coyote,
+        # "pr_part1_vfpio": pr_part1_vfpio,
+        # "pr_part2_vfpio": pr_part2_vfpio,
+    }
+
+    # Exp_6_2_vfpio_list = {
+    #     "pr_part1_vfpio": pr_part1_vfpio,
+    #     # "pr_part2_vfpio": pr_part2_vfpio,
+    # }
+
+
+    Exp_6_4_2_vfpio_list = {
+        # "sched_perf_host_coyote": sched_perf_host_coyote,
+        # "sched_perf_host_vfpio": sched_perf_host_vfpio,
+        "sched_perf_fpga_coyote": sched_perf_fpga_coyote,
+        # "sched_perf_fpga_vfpio": sched_perf_fpga_vfpio,
+    }
 
     exp = args.experiments
 
     if exp == "simple":
         print("Running simple example.")
-        for bench_name, bench_object in simple_list.items():
-            # print(bench_object.name)
+        # for bench_name, bench_object in simple_list.items():
+        for bench_name, bench_object in Exp_6_2_coyote_list.items():
             print("--------------------------------------------")
-            run_benchmark(exp_res_path, bench_object, reprogram)
+            run_pr_benchmark(exp_res_path, bench_object, reprogram)
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
@@ -379,7 +488,7 @@ def main():
         #     print("--------------------------------------------")
         #     run_benchmark(exp_res_path, bench_object, reprogram)
 
-        for bench_name, bench_object in Exp_6_1_host_list.items():
+        for bench_name, bench_object in Exp_6_4_2_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             run_pr_benchmark(exp_res_path, bench_object ,reprogram)
@@ -394,7 +503,10 @@ if __name__ == "__main__":
     # get timestamp
     now = datetime.now()
     timestamp = now.strftime("%m_%d_%H_%M")
-    log_filename = "log_" + timestamp + ".log"
+    exp_res_path = os.path.join(os.path.realpath("."), "exp-results")
+    pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
+
+    log_filename = os.path.join(exp_res_path, "log_" + timestamp + ".log")
     logging.basicConfig(level=logging.DEBUG, filename=log_filename, filemode="a+",
                         format="%(asctime)-15s %(levelname)-8s %(message)s")
     main()
