@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-import os
 import sys
-import csv
+import os
 import json
 import time
 import copy
@@ -181,15 +180,15 @@ def pr_client(bench_object, out_file):
             try: 
                 client_process = subprocess.run(
                     cmd_app,
-                    stdout=f,
-                    stderr=f,
+                    # stdout=f,
+                    # stderr=f,
                     env=os.environ,
                     timeout = 10,
                     text = True,
                     # check=True,
                 )
-                print("finished running " + app)
-                # print(client_process.stdout)
+                print("finished running")
+                print(client_process.stdout)
             except:
                 print("Something is wrong with the pr client application.")
                 exit()
@@ -212,11 +211,8 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     timestamp = now.strftime("%m_%d_%H_%M")
 
     # record experiment data 
-    server_file_name = bench_name + "_" + "server_" + timestamp + ".log"
-    server_out_file = os.path.join(exp_res_path, server_file_name)
-
-    client_file_name = bench_name + "_" + "client_" + timestamp + ".log"
-    client_out_file = os.path.join(exp_res_path, client_file_name)
+    file_name = bench_name + "_" + timestamp + ".log"
+    out_file = os.path.join(exp_res_path, file_name)
 
     cmd = ["sudo"]
     cmd += options
@@ -236,123 +232,91 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     logging.info("bistream: " + bistream_file)
     logging.info("cmd: ")
     logging.info(cmd)
-    print("output file: " + server_out_file)
+    print("output file: " + out_file)
 
     if reprogram:
         reprogram_fpga(bistream_file)
 
     print("Running host application.")
 
-    with open(server_out_file, "w+") as f:
-        server_process = subprocess.Popen(cmd,
-                        stdout = f, 
-                        stderr = f,
-                        # stdout = subprocess.PIPE, 
-                        # stderr = subprocess.PIPE,
-                        text = True,
-                        )
-            
-        thread = Thread(target=pr_client, args=(bench_object, client_out_file))
+    server_process = subprocess.Popen(cmd,
+                     stdout = subprocess.PIPE, 
+                     stderr = subprocess.PIPE,
+                     text = True,
+                     )
+    
+    # kill = lambda process: process.kill()
+    # my_timer = Timer(200, kill, [server_process])
 
-        thread.start()
-        output, errors = server_process.communicate()
+    # try:
+    #     my_timer.start()
 
-        print('Waiting for the thread...')
-        thread.join()
+    #     for app in app_list:
+    #         cmd_app = cmd_2 + [app]
+    #         print("cmd_app: ")
+    #         print(cmd_app)
+    #         with open(out_file, "w+") as f:
+    #             try: 
+    #                 client_process = subprocess.run(
+    #                     cmd_app,
+    #                     # stdout=f,
+    #                     # stderr=f,
+    #                     env=os.environ,
+    #                     timeout = 10,
+    #                     text = True,
+    #                     # check=True,
+    #                 )
+    #                 print("finished running")
+    #                 print(client_process.stdout)
+    #             except:
+    #                 print("Something is wrong with the pr client application. Please reprogram the FPGA.")
+    #                 exit()
 
-        print("about to kill")
-        server_process.kill()
-        # print(output)
+
+    #     output, errors = server_process.communicate()
+    #     print(output)
+    #     print("about to kill")
+    #     server_process.kill()
+    # finally:
+    #     my_timer.cancel()
+    
+    thread = Thread(target=pr_client, args=(bench_object, out_file))
+
+    thread.start()
+    output, errors = server_process.communicate()
+    print(output)
+
+    print('Waiting for the thread...')
+    thread.join()
+    # for app in app_list:
+    #     cmd_app = cmd_2 + [app]
+    #     print("cmd_app: ")
+    #     print(cmd_app)
+    #     with open(out_file, "w+") as f:
+    #         try: 
+    #             client_process = subprocess.run(
+    #                 cmd_app,
+    #                 # stdout=f,
+    #                 # stderr=f,
+    #                 env=os.environ,
+    #                 timeout = 10,
+    #                 text = True,
+    #                 # check=True,
+    #             )
+    #             print("finished running")
+    #             print(client_process.stdout)
+    #         except:
+    #             print("Something is wrong with the pr client application.")
+    #             exit()
+
+
+    print("about to kill")
+    server_process.kill()
+
 
     # parse_output(out_file)
 
     return
-
-def get_data(total, entry, line):
-    entry = [entry[0], line[1], round(float(line[1])/total[1]*100, 1), 
-                line[2], round(float(line[2])/total[3]*100, 1), 
-                line[10], round(float(line[10])/total[5]*100, 1)]
-    return entry
-
-def extract_util(coyote_path, vfpio_path):
-    result_table = []
-    header = ["", "LUTs", "[%]", "Flips-Flops", "[%]", "BRAM", "[%]"]
-    total = ["U280", 1303680, 100.0, 2607360, 100.0, 2016, 100.0]
-    result_table.append(header)
-    result_table.append(total)
-
-    with open(coyote_path, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        for i, line in enumerate(reader):
-            entry = []
-            if line == []:
-                continue
-            if line[0] == "cyt_top":
-                entry = ["Static (Coyote)"]
-                entry = get_data(total, entry, line)
-                result_table.append(entry)
-
-
-    with open(vfpio_path, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        network_entry = ["Network(RDMA)", 0, 0, 0, 0, 0, 0]
-        cdma_entry = ["Local DMA (cdma)", 0, 0, 0, 0, 0, 0]
-        scheduler_entry = ["Scheduler", 0, 0, 0, 0, 0, 0]
-        for i, line in enumerate(reader):
-            entry = []
-            if line == []:
-                continue
-            if line[0] == "cyt_top":
-                entry = ["Static (vFPIO)"]
-                entry = get_data(total, entry, line)
-                # entry = ["cyt_top", line[1], round(float(line[1])/total[1]*100, 1), 
-                #          line[2], round(float(line[2])/total[3]*100, 1), 
-                #          line[10], round(float(line[10])/total[5]*100, 1), 
-                #          line[11], round(float(line[11])/total[7]*100, 1)]
-                result_table.append(entry)
-            elif line[0] == "inst_network_top_0 (network_top)" or line[0] == "inst_network_top_1 (network_top__parameterized0)":
-                network_entry[1] += float(line[1])
-                network_entry[3] += float(line[2])
-                network_entry[5] += float(line[10])
-            elif line[0] == "inst_int_hbm (design_hbm)":
-                entry = ["Memory"]
-                entry = get_data(total, entry, line)
-                result_table.append(entry)
-            elif line[0] == "xdma_0 (design_static_xdma_0_0)":
-                entry = ["PCIe DMA (xDMA)"]
-                entry = get_data(total, entry, line)
-                result_table.append(entry)
-            elif "cdma__parameterized" in line[0] or "cdma)" in line[0]:
-                cdma_entry[1] += float(line[1])
-                cdma_entry[3] += float(line[2])
-                cdma_entry[5] += float(line[10]) 
-            elif line[0] == "inst_tlb_top (tlb_top)":
-                entry = ["MMU"]
-                entry = get_data(total, entry, line)
-                result_table.append(entry)
-            elif "tlb_arbiter)" in line[0] or "tlb_arbiter__parameterized" in line[0]:
-                scheduler_entry[1] += float(line[1])
-                scheduler_entry[3] += float(line[2])
-                scheduler_entry[5] += float(line[10])
-    
-    network_entry[2] = round(float(network_entry[1])/total[1]*100, 1)
-    network_entry[4] = round(float(network_entry[3])/total[3]*100, 1)
-    network_entry[6] = round(float(network_entry[5])/total[5]*100, 1)
-
-    cdma_entry[2] = round(float(cdma_entry[1])/total[1]*100, 1)
-    cdma_entry[4] = round(float(cdma_entry[3])/total[3]*100, 1)
-    cdma_entry[6] = round(float(cdma_entry[5])/total[5]*100, 1)
-
-    scheduler_entry[2] = round(float(scheduler_entry[1])/total[1]*100, 1)
-    scheduler_entry[4] = round(float(scheduler_entry[3])/total[3]*100, 1)
-    scheduler_entry[6] = round(float(scheduler_entry[5])/total[5]*100, 1)
-
-    result_table.append(network_entry)
-    result_table.append(cdma_entry)
-    result_table.append(scheduler_entry)
-
-    print(result_table)
-
 
 
 def main():
@@ -365,9 +329,11 @@ def main():
 
     reprogram = args.reprogram
 
+    
     # Create directory to hold experiment data
     exp_res_path = os.path.join(os.path.realpath("."), "exp-results")
-    # pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
+    pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
+
 
     aes_host = benchmark("aes_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "aes"])
     sha256_host = benchmark("sha256_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "sha256"])
@@ -463,20 +429,14 @@ def main():
     # Partial reconfiguration 
     # in /scratch/chenjiyang/Coyote_faas
     pr_part1_host = benchmark("pr_part1_coyote", "cyt_top_caribou_u280_host_1218", "build_pr_server_sw", 
-                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_host")], "build_pr_client_sw", 
-                                app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
+                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_host")], "build_pr_client_sw", app_list = ["aes"])
+                                # ["BITSTREAM_DIR=./bitstreams/caribou_u280_host"], "build_pr_client_sw", app_list = ["aes", "nw", "matmul", "sha3", "gzip"])
     pr_part2_host = benchmark("pr_part2_coyote", "cyt_top_caribou3_u280_host_1218", "build_pr_server_sw", 
-                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_host")], "build_pr_client_sw", 
-                                app_list = ["sha256", "md5", "rng", "teardown"])
+                                ["BITSTREAM_DIR=./bitstreams/caribou_u2803_host"], "build_pr_client_sw", app_list = ["sha256", "md5", "rng"])
     pr_part1_hbm = benchmark("pr_part1_vfpio", "cyt_top_caribou_u280_hbm_1214", "build_pr_server_sw", 
-                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_hbm")], "build_pr_client_sw", 
-                                app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
+                                ["BITSTREAM_DIR=./bitstreams/caribou_u280_hbm"], "build_pr_client_sw", app_list = ["aes", "nw", "matmul", "sha3", "gzip"])
     pr_part2_hbm = benchmark("pr_part2_vfpio", "cyt_top_caribou3_u280_hbm_1218", "build_pr_server_sw", 
-                                ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_hbm")], "build_pr_client_sw", 
-                                app_list = ["sha256", "md5", "rng", "teardown"])
-    
-    vfpio_switch = benchmark("md5_vfpio", "cyt_top_md5_io_106", "build_io_app_sw", ["-o", "md5", "-i", "-h", "-f"])
-    
+                                ["BITSTREAM_DIR=./bitstreams/caribou3_u280_hbm"], "build_pr_client_sw", app_list = ["sha256", "md5", "rng"])
 
 
     sched_perf_host_coyote = benchmark("sched_perf_host_coyote", "cyt_top_perf_host_strm_0511", "build_perf_host_sw", []);
@@ -525,19 +485,18 @@ def main():
         "gzip_vfpio": gzip_vfpio
     }
 
-    Exp_6_3_host_list = {
+    Exp_6_2_coyote_list = {
         "pr_part1_host": pr_part1_host,
-        "pr_part2_host": pr_part2_host,
+        # "pr_part2_coyote": pr_part2_coyote,
+        # "pr_part1_vfpio": pr_part1_vfpio,
+        # "pr_part2_vfpio": pr_part2_vfpio,
     }
 
-    Exp_6_3_hmb_list = {
-        "pr_part1_hbm": pr_part1_hbm,
-        "pr_part2_hbm": pr_part2_hbm,
-    }
+    # Exp_6_2_vfpio_list = {
+    #     "pr_part1_vfpio": pr_part1_vfpio,
+    #     # "pr_part2_vfpio": pr_part2_vfpio,
+    # }
 
-    Exp_6_3_vfpio_list = {
-        "vfpio_switch": vfpio_switch,
-    }
 
     Exp_6_4_2_vfpio_list = {
         # "sched_perf_host_coyote": sched_perf_host_coyote,
@@ -546,17 +505,14 @@ def main():
         # "sched_perf_fpga_vfpio": sched_perf_fpga_vfpio,
     }
 
-    Exp_6_5_resource_util = {}
-
     exp = args.experiments
 
     if exp == "simple":
         print("Running simple example.")
         # for bench_name, bench_object in simple_list.items():
-        # for bench_name, bench_object in Exp_6_3_host_list.items():
-        #     print("--------------------------------------------")
-        #     run_pr_benchmark(exp_res_path, bench_object, reprogram)
-        extract_util("util_coyote.csv", "util_vfpio.csv")
+        for bench_name, bench_object in Exp_6_2_coyote_list.items():
+            print("--------------------------------------------")
+            run_pr_benchmark(exp_res_path, bench_object, reprogram)
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
@@ -576,32 +532,6 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             run_benchmark(exp_res_path, bench_object, reprogram)
-    
-    elif exp == "Exp_6_3_host_list":
-        for bench_name, bench_object in Exp_6_3_host_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)     
-    elif exp == "Exp_6_3_hmb_list":
-        for bench_name, bench_object in Exp_6_3_hmb_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)
-    elif exp == "Exp_6_3_vfpio_list":
-        for bench_name, bench_object in Exp_6_3_vfpio_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)
-
-    elif exp == "Exp_6_4_2_vfpio_list":
-        for bench_name, bench_object in Exp_6_4_2_vfpio_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)
-    elif exp == "Exp_6_5_resource_util":
-        print("--------------------------------------------")
-        extract_util("util_coyote.csv", "util_vfpio.csv")
-
     else:
         # for bench_name, bench_object in Exp_6_1_host_list.items():
         #     # print(bench_object.name)
@@ -623,10 +553,7 @@ if __name__ == "__main__":
     # get timestamp
     now = datetime.now()
     timestamp = now.strftime("%m_%d_%H_%M")
-    exp_res_path = os.path.join(os.path.realpath("."), "exp-results")
-    pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
-
-    log_filename = os.path.join(exp_res_path, "log_" + timestamp + ".log")
+    log_filename = "log_" + timestamp + ".log"
     logging.basicConfig(level=logging.DEBUG, filename=log_filename, filemode="a+",
                         format="%(asctime)-15s %(levelname)-8s %(message)s")
     main()

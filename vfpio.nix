@@ -34,6 +34,7 @@ pkgs.mkShell {
     fmt_9
     gzip
     scc
+    gnumeric
 
     # python packages
     python3
