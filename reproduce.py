@@ -17,7 +17,7 @@ from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, C
 # from matplotlib import pyplot as plt
 
 class benchmark:
-    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], input_size=1024, output_size=1024, repeat=10, app_list=[]):
+    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=10, app_list=[]):
         self.name = name
         self.bitstream = bitstream
         self.input_size = input_size
@@ -26,6 +26,8 @@ class benchmark:
         self.options = options
         self.sw_2 = sw_2
         self.options_2 = options_2
+        self.prefix_1 = prefix_1
+        self.prefix_2 = prefix_2
         self.repeat = repeat
         self.app_list = app_list
 
@@ -268,6 +270,112 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
 
     return
 
+
+def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
+    # process benchmark related data
+
+    bench_name = bench_object.name
+    bistream_file = bench_object.bitstream
+    sw_dir = bench_object.sw
+    options = bench_object.options
+    sw_2_dir = bench_object.sw_2
+    options_2 = bench_object.options_2
+    prefix_1 = bench_object.prefix_1
+    prefix_2 = bench_object.prefix_2
+
+    repeat = bench_object.repeat
+    app_list = bench_object.app_list
+
+    # get timestamp
+    now = datetime.now()
+    timestamp = now.strftime("%m_%d_%H_%M")
+
+    # record experiment data 
+    server_file_name = bench_name + "_" + "server_" + timestamp + ".log"
+    server_out_file = os.path.join(exp_res_path, server_file_name)
+
+    client_file_name = bench_name + "_" + "client_" + timestamp + ".log"
+    client_out_file = os.path.join(exp_res_path, client_file_name)
+
+    cmd = ["sudo"]
+    cmd += prefix_1
+    cmd += [os.path.join(os.path.realpath("."), sw_dir, "main")]
+    cmd += options
+
+    cmd_2 = ["ssh", "-A", "clara", "sudo"]
+    cmd_2 += prefix_2
+    cmd_2 += [os.path.join(os.path.realpath("."), sw_2_dir, "main")]
+    cmd_2 += options_2
+
+    print("Running benchmark: " + bench_name)
+    print("bitstream: " + bistream_file)
+    # print("cmd: ")
+    # print(cmd)
+    # print("cmd_2: ")
+    # print(cmd_2)
+
+    logging.info("Running benchmark: " + bench_name)
+    logging.info("bistream: " + bistream_file)
+    logging.info("cmd: ")
+    logging.info(cmd)
+    print("output file: " + server_out_file)
+
+    if reprogram:
+        reprogram_fpga(bistream_file)
+
+    print("Running server application.")
+    print(cmd)
+
+
+
+    print("Running client application remotely")
+    print(cmd_2)
+
+
+    with open(server_out_file, "w+") as fs:
+        with open(client_out_file, "w+") as fc:
+
+            for i in range(repeat):
+                print(i)
+                server_process = subprocess.Popen(cmd,
+                                stdout = fs, 
+                                stderr = fs,
+                                # stdout = subprocess.PIPE, 
+                                # stderr = subprocess.PIPE,
+                                text = True,
+                                )
+                
+                # thread = Thread(target=pr_client, args=(bench_object, client_out_file))
+
+                # thread.start()
+                # client_process = subprocess.run(cmd_2, capture_output = True, text = True)
+                client_process = subprocess.run(
+                    cmd_2,
+                    stdout=fc,
+                    stderr=fc,
+                    env=os.environ,
+                    timeout = 10,
+                    text = True,
+                    # check=True,
+                )
+
+                # print("rdma result stdout")
+                # print(client_process.stdout)
+                # print("rdma result stderr")
+                # print(client_process.stderr)
+
+                output, errors = server_process.communicate()
+
+                # print('Waiting for the thread...')
+                # thread.join()
+
+                # print("about to kill")
+                server_process.kill()
+                # time.sleep(1)
+    # parse_output(out_file)
+
+    return
+
 def get_data(total, entry, line):
     entry = [entry[0], line[1], round(float(line[1])/total[1]*100, 1), 
                 line[2], round(float(line[2])/total[3]*100, 1), 
@@ -434,7 +542,10 @@ def main():
     # AMY ->  
     # sudo FPGA_0_IP_ADDRESS=10.0.0.1 ./main -t 131.159.102.22 -w 1 --maxs 65536 --mins 65536 --repsl 100 --repst 1 -o mat -i
 
-    rdma_aes_coyote = benchmark("rdma_aes_coyote", "cyt_top_rdma_aes_u280_strm_1217", "build_rdma_app_sw", ["-o", "aes", "-i", "-h"])
+    rdma_aes_coyote = benchmark("rdma_aes_coyote", "cyt_top_rdma_aes_u280_strm_1217", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "aes", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
     rdma_aes_vfpio = benchmark("rdma_aes_vfpio", "cyt_top_rdma_aes_u280_vfpio_1231", "build_rdma_app_sw", ["-o", "aes", "-i", "-h"])
 
     rdma_sha256_coyote = benchmark("rdma_sha256_coyote", "cyt_top_rdma_sha256_u280_strm_1218", "build_rdma_app_sw", [])
@@ -525,6 +636,41 @@ def main():
         "gzip_vfpio": gzip_vfpio
     }
 
+
+    Exp_6_1_host_rdma_list = {
+        # "aes_vfpio": aes_vfpio,
+        # "sha256_vfpio": sha256_vfpio,
+        # "md5_vfpio": md5_vfpio,
+        # "nw_vfpio": nw_vfpio,
+        # "matmul_vfpio": matmul_vfpio,
+        # "sha3_vfpio": sha3_vfpio,
+        # "rng_vfpio": rng_vfpio,
+        # "gzip_vfpio": gzip_vfpio
+    }
+
+
+    Exp_6_1_vfpio_rdma_list = {
+        "rdma_aes_vfpio": rdma_aes_vfpio,
+        "rdma_sha256_vfpio": rdma_sha256_vfpio,
+        "rdma_md5_vfpio": rdma_md5_vfpio,
+        "rdma_nw_vfpio": rdma_nw_vfpio,
+        "rdma_matmul_vfpio": rdma_matmul_vfpio,
+        "rdma_sha3_vfpio": rdma_sha3_vfpio,
+        "rdma_rng_vfpio": rdma_rng_vfpio,
+        "rdma_gzip_vfpio": rdma_gzip_vfpio
+    }
+
+    Exp_6_1_coyote_rdma_list = {
+        "rdma_aes_coyote": rdma_aes_coyote,
+        # "rdma_sha256_coyote": rdma_sha256_coyote,
+        # "rdma_md5_coyote": rdma_md5_coyote,
+        # "rdma_nw_coyote": rdma_nw_coyote,
+        # "rdma_matmul_coyote": rdma_matmul_coyote,
+        # "rdma_sha3_coyote": rdma_sha3_coyote,
+        # "rdma_rng_coyote": rdma_rng_coyote,
+        # "rdma_gzip_coyote": rdma_gzip_coyote
+    }
+
     Exp_6_3_host_list = {
         "pr_part1_host": pr_part1_host,
         "pr_part2_host": pr_part2_host,
@@ -553,10 +699,10 @@ def main():
     if exp == "simple":
         print("Running simple example.")
         # for bench_name, bench_object in simple_list.items():
-        # for bench_name, bench_object in Exp_6_3_host_list.items():
-        #     print("--------------------------------------------")
-        #     run_pr_benchmark(exp_res_path, bench_object, reprogram)
-        extract_util("util_coyote.csv", "util_vfpio.csv")
+        for bench_name, bench_object in Exp_6_1_coyote_rdma_list.items():
+            print("--------------------------------------------")
+            run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+        # extract_util("util_coyote.csv", "util_vfpio.csv")
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
