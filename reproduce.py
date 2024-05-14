@@ -455,12 +455,117 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
 
 
 def get_data(total, entry, line):
+    entry = [entry[0], line[3], round(float(line[3])/total[1]*100, 1), 
+                line[7], round(float(line[7])/total[3]*100, 1), 
+                float(line[8])+float(line[9])/2, round((float(line[8])+float(line[9])/2)/total[5]*100, 1)]
+    return entry
+
+def extract_util(coyote_path, vfpio_path):
+    result_table = []
+    header = ["", "LUTs", "[%]", "Flips-Flops", "[%]", "BRAM", "[%]"]
+    total = ["U280", 1303680, 100.0, 2607360, 100.0, 2016, 100.0]
+    result_table.append(header)
+    result_table.append(total)
+
+    with open(coyote_path, "r") as f:
+        reader = csv.reader(f, delimiter="|")
+        for i, line in enumerate(reader):
+            entry = []
+            if len(line) < 5:
+                continue
+            for j in range(len(line)):
+                line[j] = line[j].strip()
+            if line[1] == "cyt_top":
+                entry = ["Coyote"]
+                entry = get_data(total, entry, line)
+                result_table.append(entry)
+                break
+
+
+    with open(vfpio_path, "r") as f:
+        reader = csv.reader(f, delimiter="|")
+        network_entry = ["Network(RDMA)", 0, 0, 0, 0, 0, 0]
+        cdma_entry = ["Local DMA (cdma)", 0, 0, 0, 0, 0, 0]
+        scheduler_entry = ["Scheduler", 0, 0, 0, 0, 0, 0]
+        vio_entry = ["Virtual IO", 0, 0, 0, 0, 0, 0]
+
+        for i, line in enumerate(reader):
+            entry = []
+            if len(line) < 5:
+                continue
+            for j in range(len(line)):
+                line[j] = line[j].strip()
+            # print(line)
+            if line[1] == "cyt_top":
+                entry = ["vFPIO"]
+                entry = get_data(total, entry, line)
+                result_table.append(entry)
+            elif line[1] == "inst_network_top_0" or line[1] == "inst_network_top_1":
+                network_entry[1] += float(line[3])
+                network_entry[3] += float(line[7])
+                network_entry[5] += float(line[8])+float(line[9])/2
+            elif line[1] == "inst_int_hbm":
+                entry = ["Memory"]
+                entry = get_data(total, entry, line)
+                result_table.append(entry)
+            elif line[1] == "xdma_0":
+                entry = ["PCIe DMA (xDMA)"]
+                entry = get_data(total, entry, line)
+                result_table.append(entry)
+            elif line[2] == "cdma__parameterized0" or line[2] == "cdma":
+                cdma_entry[1] += float(line[3])
+                cdma_entry[3] += float(line[7])
+                cdma_entry[5] += float(line[8])+float(line[9])/2    
+            elif line[0] == "inst_tlb_top":
+                entry = ["MMU"]
+                entry = get_data(total, entry, line)
+                result_table.append(entry)
+            elif (line[1] == "inst_hdma_arb_rd" and line[2] == "tlb_arbiter") or line[2] == "tlb_arbiter__parameterized0":
+                scheduler_entry[1] += float(line[3])
+                scheduler_entry[3] += float(line[7])
+                scheduler_entry[5] += float(line[8])+float(line[9])/2
+            elif line[1] == "inst_user_wrapper_0":
+                vio_entry[1] += float(line[3])
+                vio_entry[3] += float(line[7])
+                vio_entry[5] += float(line[8])+float(line[9])/2
+            elif line[1] == "inst_reg_direct":
+                vio_entry[1] -= float(line[3])
+                vio_entry[3] -= float(line[7])
+                vio_entry[5] -= float(line[8])+float(line[9])/2
+    
+    network_entry[2] = round(float(network_entry[1])/total[1]*100, 1)
+    network_entry[4] = round(float(network_entry[3])/total[3]*100, 1)
+    network_entry[6] = round(float(network_entry[5])/total[5]*100, 1)
+
+    cdma_entry[2] = round(float(cdma_entry[1])/total[1]*100, 1)
+    cdma_entry[4] = round(float(cdma_entry[3])/total[3]*100, 1)
+    cdma_entry[6] = round(float(cdma_entry[5])/total[5]*100, 1)
+
+    scheduler_entry[2] = round(float(scheduler_entry[1])/total[1]*100, 1)
+    scheduler_entry[4] = round(float(scheduler_entry[3])/total[3]*100, 1)
+    scheduler_entry[6] = round(float(scheduler_entry[5])/total[5]*100, 1)
+
+    vio_entry[2] = round(float(vio_entry[1])/total[1]*100, 1)
+    vio_entry[4] = round(float(vio_entry[3])/total[3]*100, 1)
+    vio_entry[6] = round(float(vio_entry[5])/total[5]*100, 1)
+
+    result_table.append(network_entry)
+    result_table.append(cdma_entry)
+    result_table.append(scheduler_entry)
+    result_table.append(vio_entry)
+
+    for i in result_table:
+        print(i)
+    # print(result_table)
+
+
+def get_data_xlsx(total, entry, line):
     entry = [entry[0], line[1], round(float(line[1])/total[1]*100, 1), 
                 line[2], round(float(line[2])/total[3]*100, 1), 
                 line[10], round(float(line[10])/total[5]*100, 1)]
     return entry
 
-def extract_util(coyote_path, vfpio_path):
+def extract_util_xlsx(coyote_path, vfpio_path):
     result_table = []
     header = ["", "LUTs", "[%]", "Flips-Flops", "[%]", "BRAM", "[%]"]
     total = ["U280", 1303680, 100.0, 2607360, 100.0, 2016, 100.0]
@@ -475,7 +580,7 @@ def extract_util(coyote_path, vfpio_path):
                 continue
             if line[0] == "cyt_top":
                 entry = ["Static (Coyote)"]
-                entry = get_data(total, entry, line)
+                entry = get_data_xlsx(total, entry, line)
                 result_table.append(entry)
 
 
@@ -491,7 +596,7 @@ def extract_util(coyote_path, vfpio_path):
                 continue
             if line[0] == "cyt_top":
                 entry = ["Static (vFPIO)"]
-                entry = get_data(total, entry, line)
+                entry = get_data_xlsx(total, entry, line)
                 # entry = ["cyt_top", line[1], round(float(line[1])/total[1]*100, 1), 
                 #          line[2], round(float(line[2])/total[3]*100, 1), 
                 #          line[10], round(float(line[10])/total[5]*100, 1), 
@@ -503,11 +608,11 @@ def extract_util(coyote_path, vfpio_path):
                 network_entry[5] += float(line[10])
             elif line[0] == "inst_int_hbm (design_hbm)":
                 entry = ["Memory"]
-                entry = get_data(total, entry, line)
+                entry = get_data_xlsx(total, entry, line)
                 result_table.append(entry)
             elif line[0] == "xdma_0 (design_static_xdma_0_0)":
                 entry = ["PCIe DMA (xDMA)"]
-                entry = get_data(total, entry, line)
+                entry = get_data_xlsx(total, entry, line)
                 result_table.append(entry)
             elif "cdma__parameterized" in line[0] or "cdma)" in line[0]:
                 cdma_entry[1] += float(line[1])
@@ -515,7 +620,7 @@ def extract_util(coyote_path, vfpio_path):
                 cdma_entry[5] += float(line[10]) 
             elif line[0] == "inst_tlb_top (tlb_top)":
                 entry = ["MMU"]
-                entry = get_data(total, entry, line)
+                entry = get_data_xlsx(total, entry, line)
                 result_table.append(entry)
             elif "tlb_arbiter)" in line[0] or "tlb_arbiter__parameterized" in line[0]:
                 scheduler_entry[1] += float(line[1])
@@ -871,7 +976,7 @@ def main():
         # for bench_name, bench_object in Exp_6_1_vfpio_rdma_list.items():
         #     print("--------------------------------------------")
         #     run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-        extract_util("util_coyote.csv", "util_vfpio.csv")
+        extract_util("util_coyote.csv", "util_test.csv")
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
