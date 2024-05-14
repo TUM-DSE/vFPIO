@@ -99,6 +99,7 @@ int main(int argc, char *argv[])
         hMem[i] = mapped ? (cproc[i]->getMem({huge ? CoyoteAlloc::HUGE_2M : CoyoteAlloc::REG_4K, n_pages})) 
                          : (huge ? (mmap(NULL, max_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0))
                                  : (malloc(max_size)));
+        cproc[i]->ioSwitch(IODevs::HOST_MEM);
     }
     std::cout << "Finished memory mapping" << std::endl;
 

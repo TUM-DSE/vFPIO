@@ -33,8 +33,8 @@ constexpr auto const nRegions = 3;
 constexpr auto const defHuge = false;
 constexpr auto const defMappped = true;
 constexpr auto const nReps = 100;
-constexpr auto const defMinSize = 128;
-constexpr auto const defMaxSize = 32 * 1024;
+constexpr auto const defMinSize = 1024;
+constexpr auto const defMaxSize = 256 * 1024;
 constexpr auto const nBenchRuns = 10;
 
 /**
@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
         hMem[i] = mapped ? (cproc[i]->getMem({huge ? CoyoteAlloc::HUGE_2M : CoyoteAlloc::REG_4K, n_pages})) 
                          : (huge ? (mmap(NULL, max_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0))
                                  : (malloc(max_size)));
+        cproc[i]->ioSwitch(IODevs::HOST_MEM);
     }
     
     // ---------------------------------------------------------------

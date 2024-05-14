@@ -1,5 +1,10 @@
 echo "running vivado script"
 echo "programming $1"
+if [ -n "$2" ]
+  then
+    cd $2
+fi
+echo "$PWD"
 sudo rmmod coyote_drv
 sudo bash sw/util/hot_reset.sh "e1:00.0"
 

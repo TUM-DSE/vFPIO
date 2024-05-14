@@ -24,10 +24,11 @@ using namespace fpga;
 /* Def params */
 constexpr auto const targetRegion = 0;
 constexpr auto const nReps = 1;
-constexpr auto const defSize = 128; // 2^7
-constexpr auto const maxSize = 16 * 1024;
+constexpr auto const defSize = 1024; // 2^7
+constexpr auto const maxSize = 256 * 1024;
 constexpr auto const clkNs = 1000.0 / 300.0;
-constexpr auto const nBenchRuns = 100;  
+constexpr auto const nBenchRuns = 1000;  
+constexpr auto const defvIO = false;
 
 /**
  * @brief Benchmark API
@@ -71,6 +72,21 @@ int main(int argc, char *argv[])
     uint32_t n_pages = (maxSize + hugePageSize - 1) / hugePageSize;
     uint32_t curr_size = defSize;
     uint32_t dest = 0   ;
+    bool vio = defvIO;
+
+    // Read arguments
+    boost::program_options::options_description programDescription("Options:");
+    programDescription.add_options()
+        // ("operator,o", boost::program_options::value<std::string>(&opId), "Operator")
+        // ("hugepages,h", boost::program_options::bool_switch(&huge), "Hugepages")
+        ("vio,i", boost::program_options::bool_switch(&vio), "vIO");
+        // ("fpga_mem,f", boost::program_options::bool_switch(&fpga_mem), "Use fpga mem or not.")
+        // ("size,s", boost::program_options::value<uint32_t>(), "Data size");
+
+    boost::program_options::variables_map commandLineArgs;
+    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, programDescription), commandLineArgs);
+    boost::program_options::notify(commandLineArgs);
+
 
     PR_HEADER("PARAMS");
     std::cout << "vFPGA ID: " << targetRegion << std::endl;
@@ -83,6 +99,8 @@ int main(int argc, char *argv[])
     // Handles and alloc
     cProcess cproc(targetRegion, getpid());
     void* hMem = cproc.getMem({CoyoteAlloc::HOST_2M, n_pages});
+
+    cproc.ioSwitch(IODevs::HOST_MEM);
 
     // ---------------------------------------------------------------
     // Runs 

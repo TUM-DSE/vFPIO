@@ -77,6 +77,28 @@ def parse_output(filename):
 
     return res
 
+def parse_rdma_output(filename):
+    # parsing rdma server output
+    res = []
+    with open(filename, 'r', errors='replace') as file:
+        for line in file:
+            # print(line.rstrip())
+            if line != '':
+                line = line.split()
+                # print(line)
+                # special handling for the TCU abort test
+                if "throughput:" in line:
+                    # print(line)
+                    res.append(float(line[3]))
+
+    print(res)
+    logging.info(res)
+    print("average: " + str(average(res)) + " MB/s")
+    logging.info("average: " + str(average(res)) + " MB/s")
+
+    return res
+
+
 def reprogram_fpga(bit_path):
     print("reprogramming fpga")
     logging.info("reprogramming fpga")
@@ -105,6 +127,38 @@ def reprogram_fpga(bit_path):
     logging.info("stderr: %s", result.stderr)
 
     print("FPGA program finished. ")
+
+def reprogram_fpga_remote(bit_path):
+    print("reprogramming fpga remote")
+    logging.info("reprogramming fpga remote")
+
+    cmd = [
+        "bash",
+        "./program_fpga.sh",
+        bit_path
+    ]
+    cmd = ["ssh", "-A", "clara"]
+    cmd += ["bash", os.path.join(os.path.realpath("."),  "program_fpga.sh"), bit_path, os.getcwd()]
+
+    print(cmd)
+    logging.info(cmd)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True, 
+            text=True
+        )
+    except:
+        print("Something went wrong during FPGA remote programming. Please check log.")
+        exit()
+
+    # print("stdout:", result.stdout)
+    # print("stderr:", result.stderr)
+    logging.info("stdout: %s", result.stdout)
+    logging.info("stderr: %s", result.stderr)
+
+    print("FPGA remote program finished. ")
+
 
 
 def run_benchmark(exp_res_path, bench_object, reprogram):
@@ -164,6 +218,135 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     parse_output(out_file)
 
     return
+
+def rdma_client(cmd, out_file):
+
+    # print("rdma_client: ")
+    # print(cmd)
+    with open(out_file, "w+") as f:
+        try: 
+            client_process = subprocess.run(
+                cmd,
+                stdout=f,
+                stderr=f,
+                env=os.environ,
+                timeout = 10,
+                text = True,
+                # check=True,
+            )
+            # print(client_process.stdout)
+        except:
+            print("Something is wrong with the rdma client application.")
+            exit()
+
+
+def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
+    # process benchmark related data
+
+    bench_name = bench_object.name
+    bistream_file = bench_object.bitstream
+    sw_dir = bench_object.sw
+    options = bench_object.options
+    sw_2_dir = bench_object.sw_2
+    options_2 = bench_object.options_2
+    prefix_1 = bench_object.prefix_1
+    prefix_2 = bench_object.prefix_2
+
+    repeat = bench_object.repeat
+    app_list = bench_object.app_list
+
+    # get timestamp
+    now = datetime.now()
+    timestamp = now.strftime("%m_%d_%H_%M")
+
+    # record experiment data 
+    server_file_name = bench_name + "_" + "server_" + timestamp + ".log"
+    server_out_file = os.path.join(exp_res_path, server_file_name)
+
+    client_file_name = bench_name + "_" + "client_" + timestamp + ".log"
+    client_out_file = os.path.join(exp_res_path, client_file_name)
+
+    cmd = ["sudo"]
+    cmd += prefix_1
+    cmd += [os.path.join(os.path.realpath("."), sw_dir, "main")]
+    cmd += options
+
+    cmd_2 = ["ssh", "-A", "clara", "sudo"]
+    cmd_2 += prefix_2
+    cmd_2 += [os.path.join(os.path.realpath("."), sw_2_dir, "main")]
+    cmd_2 += options_2
+
+    print("Running benchmark: " + bench_name)
+    print("bitstream: " + bistream_file)
+    # print("cmd: ")
+    # print(cmd)
+    # print("cmd_2: ")
+    # print(cmd_2)
+
+    logging.info("Running benchmark: " + bench_name)
+    logging.info("bistream: " + bistream_file)
+    logging.info("cmd: ")
+    logging.info(cmd)
+    print("output file: " + server_out_file)
+
+    if reprogram:
+        remote_program = Thread(target=reprogram_fpga_remote, args=(bistream_file,))
+        remote_program.start()
+
+        reprogram_fpga(bistream_file)
+        print('Waiting for the thread...')
+        remote_program.join()
+
+        # # reprogram_fpga(bistream_file)
+        # reprogram_fpga_remote(bistream_file)
+    # exit()
+    print("Running server application.")
+    print(cmd)
+
+    print("Running client application remotely")
+    print(cmd_2)
+
+    with open(server_out_file, "w+") as fs:
+        with open(client_out_file, "w+") as fc:
+
+            for i in range(repeat):
+                print(i)
+                try:
+                    server_process = subprocess.Popen(cmd,
+                                    stdout = fs, 
+                                    stderr = fs,
+                                    # stdout = subprocess.PIPE, 
+                                    # stderr = subprocess.PIPE,
+                                    text = True,
+                                    )
+                    
+                    # client_process = subprocess.run(
+                    #     cmd_2,
+                    #     stdout=fc,
+                    #     stderr=fc,
+                    #     env=os.environ,
+                    #     timeout = 10,
+                    #     text = True,
+                    #     # check=True,
+                    # )
+                    thread = Thread(target=rdma_client, args=(cmd_2, client_out_file))
+
+                    thread.start()
+
+                    # print('Waiting for the thread...')
+                    thread.join(timeout=10)
+
+                    output, errors = server_process.communicate()
+
+                    # print("about to kill")
+                    server_process.kill()
+                    time.sleep(1)
+                except:
+                    server_process.kill()
+
+    parse_rdma_output(server_out_file)
+    return
+
 
 def pr_client(bench_object, out_file):
     sw_2_dir = bench_object.sw_2
@@ -271,111 +454,6 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     return
 
 
-def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
-    # process benchmark related data
-
-    bench_name = bench_object.name
-    bistream_file = bench_object.bitstream
-    sw_dir = bench_object.sw
-    options = bench_object.options
-    sw_2_dir = bench_object.sw_2
-    options_2 = bench_object.options_2
-    prefix_1 = bench_object.prefix_1
-    prefix_2 = bench_object.prefix_2
-
-    repeat = bench_object.repeat
-    app_list = bench_object.app_list
-
-    # get timestamp
-    now = datetime.now()
-    timestamp = now.strftime("%m_%d_%H_%M")
-
-    # record experiment data 
-    server_file_name = bench_name + "_" + "server_" + timestamp + ".log"
-    server_out_file = os.path.join(exp_res_path, server_file_name)
-
-    client_file_name = bench_name + "_" + "client_" + timestamp + ".log"
-    client_out_file = os.path.join(exp_res_path, client_file_name)
-
-    cmd = ["sudo"]
-    cmd += prefix_1
-    cmd += [os.path.join(os.path.realpath("."), sw_dir, "main")]
-    cmd += options
-
-    cmd_2 = ["ssh", "-A", "clara", "sudo"]
-    cmd_2 += prefix_2
-    cmd_2 += [os.path.join(os.path.realpath("."), sw_2_dir, "main")]
-    cmd_2 += options_2
-
-    print("Running benchmark: " + bench_name)
-    print("bitstream: " + bistream_file)
-    # print("cmd: ")
-    # print(cmd)
-    # print("cmd_2: ")
-    # print(cmd_2)
-
-    logging.info("Running benchmark: " + bench_name)
-    logging.info("bistream: " + bistream_file)
-    logging.info("cmd: ")
-    logging.info(cmd)
-    print("output file: " + server_out_file)
-
-    if reprogram:
-        reprogram_fpga(bistream_file)
-
-    print("Running server application.")
-    print(cmd)
-
-
-
-    print("Running client application remotely")
-    print(cmd_2)
-
-
-    with open(server_out_file, "w+") as fs:
-        with open(client_out_file, "w+") as fc:
-
-            for i in range(repeat):
-                print(i)
-                server_process = subprocess.Popen(cmd,
-                                stdout = fs, 
-                                stderr = fs,
-                                # stdout = subprocess.PIPE, 
-                                # stderr = subprocess.PIPE,
-                                text = True,
-                                )
-                
-                # thread = Thread(target=pr_client, args=(bench_object, client_out_file))
-
-                # thread.start()
-                # client_process = subprocess.run(cmd_2, capture_output = True, text = True)
-                client_process = subprocess.run(
-                    cmd_2,
-                    stdout=fc,
-                    stderr=fc,
-                    env=os.environ,
-                    timeout = 10,
-                    text = True,
-                    # check=True,
-                )
-
-                # print("rdma result stdout")
-                # print(client_process.stdout)
-                # print("rdma result stderr")
-                # print(client_process.stderr)
-
-                output, errors = server_process.communicate()
-
-                # print('Waiting for the thread...')
-                # thread.join()
-
-                # print("about to kill")
-                server_process.kill()
-                # time.sleep(1)
-    # parse_output(out_file)
-
-    return
-
 def get_data(total, entry, line):
     entry = [entry[0], line[1], round(float(line[1])/total[1]*100, 1), 
                 line[2], round(float(line[2])/total[3]*100, 1), 
@@ -406,6 +484,7 @@ def extract_util(coyote_path, vfpio_path):
         network_entry = ["Network(RDMA)", 0, 0, 0, 0, 0, 0]
         cdma_entry = ["Local DMA (cdma)", 0, 0, 0, 0, 0, 0]
         scheduler_entry = ["Scheduler", 0, 0, 0, 0, 0, 0]
+        vio_entry = ["Virtual IO", 0, 0, 0, 0, 0, 0]
         for i, line in enumerate(reader):
             entry = []
             if line == []:
@@ -442,6 +521,14 @@ def extract_util(coyote_path, vfpio_path):
                 scheduler_entry[1] += float(line[1])
                 scheduler_entry[3] += float(line[2])
                 scheduler_entry[5] += float(line[10])
+            elif line[0] == "inst_user_wrapper_0 (design_user_wrapper_0)":
+                vio_entry[1] += float(line[1])
+                vio_entry[3] += float(line[2])
+                vio_entry[5] += float(line[10])
+            elif "inst_reg_direct" in line[0]:
+                vio_entry[1] -= float(line[1])
+                vio_entry[3] -= float(line[2])
+                vio_entry[5] -= float(line[10])
     
     network_entry[2] = round(float(network_entry[1])/total[1]*100, 1)
     network_entry[4] = round(float(network_entry[3])/total[3]*100, 1)
@@ -455,9 +542,14 @@ def extract_util(coyote_path, vfpio_path):
     scheduler_entry[4] = round(float(scheduler_entry[3])/total[3]*100, 1)
     scheduler_entry[6] = round(float(scheduler_entry[5])/total[5]*100, 1)
 
+    vio_entry[2] = round(float(vio_entry[1])/total[1]*100, 1)
+    vio_entry[4] = round(float(vio_entry[3])/total[3]*100, 1)
+    vio_entry[6] = round(float(vio_entry[5])/total[5]*100, 1)
+
     result_table.append(network_entry)
     result_table.append(cdma_entry)
     result_table.append(scheduler_entry)
+    result_table.append(vio_entry)
 
     print(result_table)
 
@@ -476,6 +568,9 @@ def main():
     # Create directory to hold experiment data
     exp_res_path = os.path.join(os.path.realpath("."), "exp-results")
     # pathlib.Path(exp_res_path).mkdir(parents = True, exist_ok = True)
+
+    cmd = ["sudo", "sysctl", "-w", "vm.nr_hugepages=1024"]
+    subprocess.run(cmd, capture_output=True, text=True)
 
     aes_host = benchmark("aes_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "aes"])
     sha256_host = benchmark("sha256_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "sha256"])
@@ -526,15 +621,38 @@ def main():
 
     # RDMA benchmarks
 
-    rdma_aes_host = benchmark("rdma_aes_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_sha256_host = benchmark("rdma_sha256_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_md5_host = benchmark("rdma_md5_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_nw_host = benchmark("rdma_nw_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_matmul_host = benchmark("rdma_matmul_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_sha3_host = benchmark("rdma_sha3_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-    rdma_rng_host = benchmark("rdma_rng_host", "cyt_top_rdma_u280_new_1215", "build_rdma_rng_host_sw", [])
-    rdma_gzip_host = benchmark("rdma_gzip_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", [])
-
+    rdma_aes_host = benchmark("rdma_aes_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "aes"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_sha256_host = benchmark("rdma_sha256_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw",  
+                                ["-w", "1", "--repst", "1", "-o", "sha256"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_md5_host = benchmark("rdma_md5_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "md5"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_nw_host = benchmark("rdma_nw_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "nw"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_matmul_host = benchmark("rdma_matmul_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "mat"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_sha3_host = benchmark("rdma_sha3_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "sha3"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_rng_host = benchmark("rdma_rng_host", "cyt_top_rdma_bram_strm_112", "build_rdma_rng_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "rng"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_gzip_host = benchmark("rdma_gzip_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "gzip"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
 
     # CLARA -> 
@@ -542,32 +660,82 @@ def main():
     # AMY ->  
     # sudo FPGA_0_IP_ADDRESS=10.0.0.1 ./main -t 131.159.102.22 -w 1 --maxs 65536 --mins 65536 --repsl 100 --repst 1 -o mat -i
 
+    # Amy -> 
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.1 ./main -w 1 --repst 1 -o nw
+    # Clara ->  
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.2 ./main -t 131.159.102.20 -w 1 --repst 1 -o nw
+
     rdma_aes_coyote = benchmark("rdma_aes_coyote", "cyt_top_rdma_aes_u280_strm_1217", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "aes"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_aes_vfpio = benchmark("rdma_aes_vfpio", "cyt_top_rdma_aes_u280_vfpio_1231", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "aes", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes", "-i"],
                                 prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
-    rdma_aes_vfpio = benchmark("rdma_aes_vfpio", "cyt_top_rdma_aes_u280_vfpio_1231", "build_rdma_app_sw", ["-o", "aes", "-i", "-h"])
 
-    rdma_sha256_coyote = benchmark("rdma_sha256_coyote", "cyt_top_rdma_sha256_u280_strm_1218", "build_rdma_app_sw", [])
-    rdma_sha256_vfpio = benchmark("rdma_sha256_vfpio", "cyt_top_rdma_sha256_io_104", "build_rdma_app_sw", [])
+    rdma_sha256_coyote = benchmark("rdma_sha256_coyote", "cyt_top_rdma_sha256_u280_strm_1218", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "sha256"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_sha256_vfpio = benchmark("rdma_sha256_vfpio", "cyt_top_rdma_sha256_io_104", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "sha256", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
-    rdma_md5_coyote = benchmark("rdma_md5_coyote", "cyt_top_rdma_md5_u280_strm_1218", "build_rdma_app_sw", [])
-    rdma_md5_vfpio = benchmark("rdma_md5_vfpio", "cyt_top_rdma_md5_io_104", "build_rdma_app_sw", [])
+    rdma_md5_coyote = benchmark("rdma_md5_coyote", "cyt_top_rdma_md5_u280_strm_1218", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "md5"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_md5_vfpio = benchmark("rdma_md5_vfpio", "cyt_top_rdma_md5_io_104", "build_rdma_app_sw",
+                               ["-w", "1", "--repst", "1", "-o", "md5"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
-    rdma_nw_coyote = benchmark("rdma_nw_coyote", "cyt_top_rdma_nw_strm_109", "build_rdma_app_sw", [])
-    rdma_nw_vfpio = benchmark("rdma_nw_vfpio", "cyt_top_rdma_nw_io_109", "build_rdma_app_sw", [])
+    rdma_nw_coyote = benchmark("rdma_nw_coyote", "cyt_top_rdma_nw_strm_109", "build_rdma_app_sw",
+                                ["-w", "1", "--repst", "1", "-o", "nw"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2)
+    rdma_nw_vfpio = benchmark("rdma_nw_vfpio", "cyt_top_rdma_nw_io_109", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "nw", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2)
 
-    rdma_matmul_coyote = benchmark("rdma_matmul_coyote", "cyt_top_rdma_matmul_strm_109", "build_rdma_app_sw", [])
-    rdma_matmul_vfpio = benchmark("rdma_matmul_vfpio", "cyt_top_rdma_matmul_io_109", "build_rdma_app_sw", [])
+    rdma_matmul_coyote = benchmark("rdma_matmul_coyote", "cyt_top_rdma_matmul_strm_109", "build_rdma_app_sw",
+                                ["-w", "1", "--repst", "1", "-o", "mat"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_matmul_vfpio = benchmark("rdma_matmul_vfpio", "cyt_top_rdma_matmul_io_109", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "mat", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
-    rdma_sha3_coyote = benchmark("rdma_sha3_coyote", "cyt_top_rdma_keccak_strm_109", "build_rdma_app_sw", [])
-    rdma_sha3_vfpio = benchmark("rdma_sha3_vfpio", "cyt_top_rdma_keccak_io_110", "build_rdma_app_sw", [])
+    rdma_sha3_coyote = benchmark("rdma_sha3_coyote", "cyt_top_rdma_keccak_strm_109", "build_rdma_app_sw",
+                                ["-w", "1", "--repst", "1", "-o", "sha3"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_sha3_vfpio = benchmark("rdma_sha3_vfpio", "cyt_top_rdma_keccak_io_110", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "sha3", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
-    rdma_rng_coyote = benchmark("rdma_rng_coyote", "cyt_top_rdma_rng_strm_116", "build_rdma_app_sw", [])
-    rdma_rng_vfpio = benchmark("rdma_rng_vfpio", "cyt_top_rdma_rng_io_116", "build_rdma_app_sw", [])
+    rdma_rng_coyote = benchmark("rdma_rng_coyote", "cyt_top_rdma_rng_strm_116", "build_rdma_app_sw",
+                                ["-w", "1", "--repst", "1", "-o", "rng"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_rng_vfpio = benchmark("rdma_rng_vfpio", "cyt_top_rdma_rng_io_116", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "rng", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
-    rdma_gzip_coyote = benchmark("rdma_gzip_coyote", "cyt_top_rdma_gzip_strm_109", "build_rdma_app_sw", [])
-    rdma_gzip_vfpio = benchmark("rdma_gzip_vfpio", "cyt_top_rdma_gzip_io_109", "build_rdma_app_sw", [])
+    rdma_gzip_coyote = benchmark("rdma_gzip_coyote", "cyt_top_rdma_gzip_strm_109", "build_rdma_app_sw",
+                                ["-w", "1", "--repst", "1", "-o", "gzip"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+    rdma_gzip_vfpio = benchmark("rdma_gzip_vfpio", "cyt_top_rdma_gzip_io_109", "build_rdma_app_sw", 
+                                ["-w", "1", "--repst", "1", "-o", "gzip", "-i"],
+                                "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip", "-i"],
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
 
 
 
@@ -594,6 +762,7 @@ def main():
     sched_perf_host_vfpio = benchmark("sched_perf_host_vfpio", "cyt_top_perf_host_io_0511", "build_perf_host_sw", []);
 
 
+    # cyt_top_perf_fpga_u280_829_coyote, cyt_top_perf_fpga_u280_829_arbiter
     sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0511", "build_perf_fpga_sw", []);
     sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", []);
     
@@ -628,12 +797,12 @@ def main():
     Exp_6_1_vfpio_list = {
         "aes_vfpio": aes_vfpio,
         "sha256_vfpio": sha256_vfpio,
-        "md5_vfpio": md5_vfpio,
-        "nw_vfpio": nw_vfpio,
-        "matmul_vfpio": matmul_vfpio,
-        "sha3_vfpio": sha3_vfpio,
-        "rng_vfpio": rng_vfpio,
-        "gzip_vfpio": gzip_vfpio
+        # "md5_vfpio": md5_vfpio,
+        # "nw_vfpio": nw_vfpio,
+        # "matmul_vfpio": matmul_vfpio,
+        # "sha3_vfpio": sha3_vfpio,
+        # "rng_vfpio": rng_vfpio,
+        # "gzip_vfpio": gzip_vfpio
     }
 
 
@@ -650,22 +819,22 @@ def main():
 
 
     Exp_6_1_vfpio_rdma_list = {
-        "rdma_aes_vfpio": rdma_aes_vfpio,
-        "rdma_sha256_vfpio": rdma_sha256_vfpio,
+        # "rdma_aes_vfpio": rdma_aes_vfpio,
+        # "rdma_sha256_vfpio": rdma_sha256_vfpio,
         "rdma_md5_vfpio": rdma_md5_vfpio,
         "rdma_nw_vfpio": rdma_nw_vfpio,
-        "rdma_matmul_vfpio": rdma_matmul_vfpio,
-        "rdma_sha3_vfpio": rdma_sha3_vfpio,
-        "rdma_rng_vfpio": rdma_rng_vfpio,
+        # "rdma_matmul_vfpio": rdma_matmul_vfpio,
+        # "rdma_sha3_vfpio": rdma_sha3_vfpio,
+        # "rdma_rng_vfpio": rdma_rng_vfpio,
         "rdma_gzip_vfpio": rdma_gzip_vfpio
     }
 
     Exp_6_1_coyote_rdma_list = {
-        "rdma_aes_coyote": rdma_aes_coyote,
+        # "rdma_aes_coyote": rdma_aes_coyote,
         # "rdma_sha256_coyote": rdma_sha256_coyote,
         # "rdma_md5_coyote": rdma_md5_coyote,
-        # "rdma_nw_coyote": rdma_nw_coyote,
-        # "rdma_matmul_coyote": rdma_matmul_coyote,
+        "rdma_nw_coyote": rdma_nw_coyote,
+        "rdma_matmul_coyote": rdma_matmul_coyote,
         # "rdma_sha3_coyote": rdma_sha3_coyote,
         # "rdma_rng_coyote": rdma_rng_coyote,
         # "rdma_gzip_coyote": rdma_gzip_coyote
@@ -699,10 +868,10 @@ def main():
     if exp == "simple":
         print("Running simple example.")
         # for bench_name, bench_object in simple_list.items():
-        for bench_name, bench_object in Exp_6_1_coyote_rdma_list.items():
-            print("--------------------------------------------")
-            run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-        # extract_util("util_coyote.csv", "util_vfpio.csv")
+        # for bench_name, bench_object in Exp_6_1_vfpio_rdma_list.items():
+        #     print("--------------------------------------------")
+        #     run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+        extract_util("util_coyote.csv", "util_vfpio.csv")
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
