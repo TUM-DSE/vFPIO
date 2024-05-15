@@ -379,6 +379,8 @@ struct csInvokeAll {
 	bool poll = true;
 	uint8_t dest = { 0 };
 	bool stream = true;
+    uint32_t req_count = { 0 };
+	uint8_t prio = { 0 };
 };
 
 /* Invoke struct with single src/dst location (simplification only) */

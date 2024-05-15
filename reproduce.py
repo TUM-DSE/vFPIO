@@ -77,6 +77,54 @@ def parse_output(filename):
 
     return res
 
+
+def parse_6_4_1_output(filename):
+    res = []
+    with open(filename, 'r', errors='replace') as file:
+        for line in file:
+            # print(line.rstrip())
+            if line != '':
+                line = line.split()
+                # print(line)
+                # special handling for the TCU abort test
+                if "cycle" in line:
+                    # print(line)
+                    res.append(float(line[3]))
+                    # line = line[6:]
+
+    print(res)
+    logging.info(res)
+    # print("average: " + str(average(res)) + " MB/s")
+    # logging.info("average: " + str(average(res)) + " MB/s")
+
+    return res
+
+
+def parse_6_4_2_output(filename):
+    res = []
+    res_tmp = []
+    with open(filename, 'r', errors='replace') as file:
+        for line in file:
+            # print(line.rstrip())
+            if line != '':
+                line = line.split()
+                # print(line)
+                # special handling for the TCU abort test
+                if "Context" in line:
+                    # print(line)
+                    res_tmp.append(float(line[3]))
+
+    res.append(res_tmp[3] - res_tmp[0])
+    res.append(res_tmp[6] - res_tmp[3])
+    res.append(res_tmp[9] - res_tmp[6])
+    res.append(res_tmp[12] - res_tmp[9])
+    print(res)
+    logging.info(res)
+    # # print("average: " + str(average(res)) + " MB/s")
+    # # logging.info("average: " + str(average(res)) + " MB/s")
+
+    return res
+
 def parse_rdma_output(filename):
     # parsing rdma server output
     res = []
@@ -215,9 +263,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
                 exit()
         time.sleep(1)
 
-    parse_output(out_file)
-
-    return
+    return out_file
 
 def rdma_client(cmd, out_file):
 
@@ -452,6 +498,68 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     # parse_output(out_file)
 
     return
+
+
+def run_cntx_benchmark(exp_res_path, bench_object, reprogram):
+    # process benchmark related data
+
+    bench_name = bench_object.name
+    bistream_file = bench_object.bitstream
+    sw_dir = bench_object.sw
+    options = bench_object.options
+    repeat = bench_object.repeat
+    app_list = bench_object.app_list
+
+    # get timestamp
+    now = datetime.now()
+    timestamp = now.strftime("%m_%d_%H_%M")
+
+    # record experiment data 
+    file_name = bench_name + "_" + timestamp + ".log"
+    out_file = os.path.join(exp_res_path, file_name)
+
+    cmd = [
+        "sudo",
+        os.path.join(os.path.realpath("."), sw_dir, "main"),
+    ]
+    cmd += options
+    print("Running benchmark: " + bench_name)
+    print("bistream: " + bistream_file)
+    # print("cmd: ")
+    # print(cmd)
+
+    logging.info("Running benchmark: " + bench_name)
+    logging.info("bistream: " + bistream_file)
+    # logging.info("cmd: ")
+    # logging.info(cmd)
+    print("output file: " + out_file)
+
+    if reprogram:
+        reprogram_fpga(bistream_file)
+
+    print("Running host application.")
+    
+    with open(out_file, "w+") as f:
+        for size in app_list:
+            # "-s", "16384", "-e", "16384"
+            cmd_size = cmd + ["-s", size, "-e", size]
+            print("cmd: ")
+            print(cmd_size)
+            try: 
+                subprocess.run(
+                    cmd_size,
+                    stdout=f,
+                    stderr=f,
+                    env=os.environ,
+                    timeout = 10,
+                    check=True,
+                )
+            except:
+                print("Something is wrong with the host application. Please reprogram the FPGA.")
+                exit()
+        time.sleep(1)
+
+    return out_file
 
 
 def get_data(total, entry, line):
@@ -862,14 +970,21 @@ def main():
     vfpio_switch = benchmark("md5_vfpio", "cyt_top_md5_io_106", "build_io_app_sw", ["-o", "md5", "-i", "-h", "-f"])
     
 
+    # sudo ./main -r 100 -s 16384 -e 16384 -p 2
+    sched_perf_host_coyote_cycle = benchmark("sched_perf_host_coyote_cycle", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
+                                ["-r", "100", "-s", "16384", "-e", "16384"], repeat=1)
+    sched_perf_host_vfpio_cycle = benchmark("sched_perf_host_vfpio_cycle", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
+                                ["-r", "100", "-s", "16384", "-e", "16384", "-p", "2"], repeat=1)
 
-    sched_perf_host_coyote = benchmark("sched_perf_host_coyote", "cyt_top_perf_host_strm_0511", "build_perf_host_sw", []);
-    sched_perf_host_vfpio = benchmark("sched_perf_host_vfpio", "cyt_top_perf_host_io_0511", "build_perf_host_sw", []);
-
+    # sudo ./main -r 100 -s 16384 -e 16384 -p 2
+    sched_perf_host_coyote_cntx = benchmark("sched_perf_host_coyote_cntx", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
+                                ["-r", "100"], repeat=1, app_list = ["1024", "2048", "4096", "16384", "32768"])
+    sched_perf_host_vfpio_cntx = benchmark("sched_perf_host_vfpio_cntx", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
+                                ["-r", "100", "-p", "2"], repeat=1, app_list = ["1024", "2048", "4096", "16384", "32768"])
 
     # cyt_top_perf_fpga_u280_829_coyote, cyt_top_perf_fpga_u280_829_arbiter
-    sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0511", "build_perf_fpga_sw", []);
-    sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", []);
+    sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0511", "build_perf_fpga_sw", [])
+    sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", [])
     
 
     simple_list = {
@@ -959,6 +1074,16 @@ def main():
         "vfpio_switch": vfpio_switch,
     }
 
+    Exp_6_4_1_cycle_list = {
+        "sched_perf_host_coyote_cycle": sched_perf_host_coyote_cycle,
+        "sched_perf_host_vfpio_cycle": sched_perf_host_vfpio_cycle,
+    }
+
+    Exp_6_4_1_cntx_list = {
+        "sched_perf_host_coyote_cntx": sched_perf_host_coyote_cntx,
+        "sched_perf_host_vfpio_cntx": sched_perf_host_vfpio_cntx,
+    }
+
     Exp_6_4_2_vfpio_list = {
         # "sched_perf_host_coyote": sched_perf_host_coyote,
         # "sched_perf_host_vfpio": sched_perf_host_vfpio,
@@ -973,29 +1098,36 @@ def main():
     if exp == "simple":
         print("Running simple example.")
         # for bench_name, bench_object in simple_list.items():
-        # for bench_name, bench_object in Exp_6_1_vfpio_rdma_list.items():
-        #     print("--------------------------------------------")
-        #     run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-        extract_util("util_coyote.csv", "util_test.csv")
+        for bench_name, bench_object in Exp_6_4_1_cntx_list.items():
+            print("--------------------------------------------")
+            output_result = run_cntx_benchmark(exp_res_path, bench_object, reprogram)
+            parse_6_4_2_output(output_result)
+
+            # run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+        # extract_util("util_coyote.csv", "util_test.csv")
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
         for bench_name, bench_object in Exp_6_1_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            run_benchmark(exp_res_path, bench_object, reprogram)
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            parse_output(output_result)
+
     elif exp == "Exp_6_1_coyote_list":
         print("Running Exp_6_1_coyote_list example.")
         for bench_name, bench_object in Exp_6_1_coyote_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            run_benchmark(exp_res_path, bench_object, reprogram)
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            parse_output(output_result)
     elif exp == "Exp_6_1_vfpio_list":
         print("Running Exp_6_1_vfpio_list example.")
         for bench_name, bench_object in Exp_6_1_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            run_benchmark(exp_res_path, bench_object, reprogram)
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            parse_output(output_result)
     
     elif exp == "Exp_6_3_host_list":
         for bench_name, bench_object in Exp_6_3_host_list.items():
@@ -1012,7 +1144,12 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             run_pr_benchmark(exp_res_path, bench_object ,reprogram)
-
+    elif exp == "Exp_6_4_1_host_list":
+        for bench_name, bench_object in Exp_6_4_1_host_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            parse_6_4_1_output(output_result)
     elif exp == "Exp_6_4_2_vfpio_list":
         for bench_name, bench_object in Exp_6_4_2_vfpio_list.items():
             # print(bench_object.name)

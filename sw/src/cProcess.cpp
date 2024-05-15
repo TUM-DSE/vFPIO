@@ -395,6 +395,12 @@ void cProcess::invoke(const csInvokeAll& cs_invoke) {
 	if(isSync(cs_invoke.oper)) if(!fcnfg.en_mem) return;
 	if(cs_invoke.oper == CoyoteOper::NOOP) return;
 
+	// std::cout << std::setw(35) << "Read command FIFO used: \t" << std::endl;
+	// std::cout << "dest: " << cs_invoke.dest << std::endl;
+	// std::cout << "req_count: " << cs_invoke.req_count << std::endl;
+	// std::cout << "prio: " << unsigned(cs_invoke.prio) << std::endl;
+
+
 	// Lock
 	dlock.lock();
 	
@@ -443,7 +449,9 @@ void cProcess::invoke(const csInvokeAll& cs_invoke) {
 			((cpid & CTRL_PID_MASK) << CTRL_PID_WR) |
 			(cs_invoke.oper == CoyoteOper::SYNC ? CTRL_SYNC_WR : 0x0);
 			
-			
+		// each number is 64 bit, it can hold number as large as 18446744073709551615
+		cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::PRIO_STAT_REG)] = _mm256_set_epi64x(0, 0, 0, cs_invoke.prio);
+		cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::REQ_COUNT_REG)] = _mm256_set_epi64x(0, 0, 0, cs_invoke.req_count);
 		cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::CTRL_REG)] = 
 			_mm256_set_epi64x(len_cmd, reinterpret_cast<uint64_t>(cs_invoke.dst_addr), reinterpret_cast<uint64_t>(cs_invoke.src_addr), ctrl_cmd);
 	} else {

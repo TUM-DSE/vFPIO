@@ -23,11 +23,13 @@ using namespace fpga;
 constexpr auto const nRegions = 3;
 constexpr auto const defHuge = false;
 constexpr auto const defMappped = true;
-constexpr auto const nReps = 1000;
+constexpr auto const nReps = 100;
 constexpr auto const defMinSize = 16 * 1024;
 constexpr auto const defMaxSize = 16 * 1024;
-constexpr auto const nBenchRuns = 3;
+constexpr auto const nBenchRuns = 10;
 constexpr auto const defSkip = -1;
+constexpr auto const defPrioRegion = nRegions+1;    // by default all regions have same priority
+
 
 /**
  * @brief Loopback example
@@ -48,6 +50,7 @@ int main(int argc, char *argv[])
         ("reps,r", boost::program_options::value<uint32_t>(), "Number of repetitions")
         ("min_size,s", boost::program_options::value<uint32_t>(), "Starting transfer size")
         ("max_size,e", boost::program_options::value<uint32_t>(), "Ending transfer size")
+        ("prio_region,p", boost::program_options::value<uint32_t>(), "High priority region")
         ("skip_region,k", boost::program_options::value<uint32_t>(), "Region to skip");
     
     boost::program_options::variables_map commandLineArgs;
@@ -60,7 +63,9 @@ int main(int argc, char *argv[])
     uint32_t n_reps = nReps;
     uint32_t curr_size = defMinSize;
     uint32_t max_size = defMaxSize;
+    uint32_t hp_region = defPrioRegion;
     uint32_t skip = defSkip;
+
 
     if(commandLineArgs.count("regions") > 0) n_regions = commandLineArgs["regions"].as<uint32_t>();
     if(commandLineArgs.count("hugepages") > 0) huge = commandLineArgs["hugepages"].as<bool>();
@@ -68,6 +73,7 @@ int main(int argc, char *argv[])
     if(commandLineArgs.count("reps") > 0) n_reps = commandLineArgs["reps"].as<uint32_t>();
     if(commandLineArgs.count("min_size") > 0) curr_size = commandLineArgs["min_size"].as<uint32_t>();
     if(commandLineArgs.count("max_size") > 0) max_size = commandLineArgs["max_size"].as<uint32_t>();
+    if(commandLineArgs.count("prio_region") > 0) hp_region = commandLineArgs["prio_region"].as<uint32_t>();
     if(commandLineArgs.count("skip_region") > 0) skip = commandLineArgs["skip_region"].as<uint32_t>();
 
     uint32_t n_pages = huge ? ((max_size + hugePageSize - 1) / hugePageSize) : ((max_size + pageSize - 1) / pageSize);
@@ -80,6 +86,7 @@ int main(int argc, char *argv[])
     std::cout << "Number of repetitions: " << n_reps << std::endl;
     std::cout << "Starting transfer size: " << curr_size << std::endl;
     std::cout << "Ending transfer size: " << max_size << std::endl;
+    std::cout << "High prio region: " << hp_region << std::endl;
 
     // ---------------------------------------------------------------
     // Init 
@@ -102,22 +109,6 @@ int main(int argc, char *argv[])
         cproc[i]->ioSwitch(IODevs::HOST_MEM);
     }
     std::cout << "Finished memory mapping" << std::endl;
-
-    // // Fill data
-    // for (int i=0; i < n_regions; i++) {
-    //     if (i == skip)
-    //         continue;
-    //     printf("hMem[%d] before: ", i);
-    //     for (int j = 0; j < curr_size/4; j++) {
-    //         printf("%d ", ((uint32_t*) hMem[i])[j]);
-    //     }
-    //     printf("\n");
-    // }
-
-    // // priority: 3 (11) 2 bits
-    // // I/O type: 1 (01) 2 bits
-    // // length: 128 (80) 12 bits
-    // ((uint32_t*) hMem[0])[0] = 0xffee080D;
 
     // ---------------------------------------------------------------
     // Runs 
@@ -149,10 +140,10 @@ int main(int argc, char *argv[])
                     if (j == skip)
                         continue;
                     // set higher priority to vfpga 2
-                    if (j == 2)
-                        cproc[j]->invoke({CoyoteOper::TRANSFER, hMem[j], hMem[j], curr_size, curr_size, false, false, n_reps * n_runs, 1});
+                    if (j == hp_region)
+                        cproc[j]->invoke({CoyoteOper::TRANSFER, hMem[j], hMem[j], curr_size, curr_size, false, false, 0, true, n_reps * n_runs, 1});
                     else
-                        cproc[j]->invoke({CoyoteOper::TRANSFER, hMem[j], hMem[j], curr_size, curr_size, false, false, n_reps * n_runs});
+                        cproc[j]->invoke({CoyoteOper::TRANSFER, hMem[j], hMem[j], curr_size, curr_size, false, false, 0, true, n_reps * n_runs, 0});
 
                 }
             auto end_time = std::chrono::high_resolution_clock::now();
@@ -211,15 +202,6 @@ int main(int argc, char *argv[])
     }
     std::cout << std::endl;
     
-    // for (int i=0; i < n_regions; i++) {
-    //     if (i == skip)
-    //         continue;
-    //     printf("hMem[%d] after: ", i);
-    //     for (int j = 0; j < curr_size/4/2; j++) {
-    //         printf("%d ", ((uint32_t*) hMem[i])[j]);
-    //     }
-    //     printf("\n");
-    // }
     
     // ---------------------------------------------------------------
     // Release 
