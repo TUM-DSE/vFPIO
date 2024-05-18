@@ -1,202 +1,253 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="img/cyt_logo_dark.png" width = 220>
-  <source media="(prefers-color-scheme: light)" srcset="img/cyt_logo_light.png" width = 220>
-  <img src="img/cyt_logo_light.png" width = 220>
-</picture>
+# Reproduce paper results
 
-[![Build benchmarks](https://github.com/fpgasystems/Coyote/actions/workflows/build_base.yml/badge.svg?branch=master)](https://github.com/fpgasystems/Coyote/actions/workflows/build_base.yml)
-[![Build benchmarks](https://github.com/fpgasystems/Coyote/actions/workflows/build_net.yml/badge.svg?branch=master)](https://github.com/fpgasystems/Coyote/actions/workflows/build_net.yml)
-[![Build benchmarks](https://github.com/fpgasystems/Coyote/actions/workflows/build_mem.yml/badge.svg?branch=master)](https://github.com/fpgasystems/Coyote/actions/workflows/build_mem.yml)
-[![Build benchmarks](https://github.com/fpgasystems/Coyote/actions/workflows/build_pr.yml/badge.svg?branch=master)](https://github.com/fpgasystems/Coyote/actions/workflows/build_pr.yml)
-
-## _OS for FPGAs_
-
-Framework providing operating system abstractions and a range of shared networking (*RDMA*, *TCP/IP*) and memory services to common modern heterogeneous platforms.
-
-Some of Coyote's features:
- * Multiple isolated virtualized vFPGA regions
- * Dynamic reconfiguration 
- * RTL and HLS user logic coding support
- * Unified host and FPGA memory with striping across virtualized DRAM channels
- * TCP/IP service
- * RDMA service
- * HBM support
- * Runtime scheduler for different host user processes
-
-## Prerequisites
-
-Full `Vivado/Vitis` suite is needed to build the hardware side of things. Hardware server will be enough for deployment only scenarios. Coyote runs with `Vivado 2022.1`. Previous versions can be used at one's own peril.  
-
-Following AMD platforms are supported: `vcu118`, `Alveo u50`, `Alveo u55c`, `Alveo u200`, `Alveo u250` and `Alveo u280`. Coyote is currently being developed on the HACC cluster at ETH Zurich. For more information and possible external access check out the following link: https://systems.ethz.ch/research/data-processing-on-modern-hardware/hacc.html
-
-
-`CMake` is used for project creation. Additionally `Jinja2` template engine for Python is used for some of the code generation. The API is writen in `C++`, 17 should suffice (for now).
-
-## System `HW`
-
-The following picture shows the high level overview of Coyote's hardware architecture.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="img/cyt_hw_dark.png" width = 500>
-  <source media="(prefers-color-scheme: light)" srcset="img/cyt_hw_light.png" width = 500>
-  <img src="img/cyt_hw_light.png" width = 500>
-</picture>
-
-## System `SW`
-
-Coyote contains the following software layers, each adding higher level of abstraction and parallelisation potential:
-
-1. **cService** - Coyote daemon, targets a single *vFPGA*. Library of loadable functions and scheduler for submitted user tasks.
-1. **cProc** - Coyote process, targets a single *vFPGA*. Multiple *cProc* objects can run within a single *vFPGA*.
-2. **cThread** - Coyote thread, running on top of *cProc*. Allows the exploration of task level parallelisation.
-3. **cTask** - Coyote task, arbitrary user variadic function with arbitrary parameters executed by *cThreads*.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="img/cyt_sw_dark.png" width = 600>
-  <source media="(prefers-color-scheme: light)" srcset="img/cyt_sw_light.png" width = 600>
-  <img src="img/cyt_sw_light.png" width = 600>
-</picture>
-
-## Init
-~~~~
-$ git clone https://github.com/fpgasystems/Coyote.git
-~~~~
-
-## Build `HW`
-#### Create a build directory :
-~~~~
-$ cd hw && mkdir build && cd build
-~~~~
-#### Enter a valid system configuration :
-~~~~
-$ cmake .. -DFDEV_NAME=u250 <params...>
-~~~~
-
-Following configuration options are provided:
-
-| Name       | Values                   | Desription                                    |
-| ---------- | ------------------------ | --------------------------------------------- |
-| FDEV_NAME  | <**u250**, u280, u200, u50, u55c, vcu118> | Supported devices                  |
-| EN_HLS     | <**0**,1>                | HLS (*High Level Synthesis*) wrappers         |
-| N_REGIONS  | <**1**:16>               | Number of independent regions (vFPGAs)        |
-| EN_STRM    | <0, **1**>               | Enable direct host-fpga streaming channels    |
-| EN_DDR     | <**0**, 1>               | Enable local FPGA (DRAM) memory stack         |
-| EN_HBM     | <**0**, 1>               | Enable local FPGA (HBM) memory stack          |
-| EN_PR      | <**0**, 1>               | Enable partial reconfiguration of the regions |
-| N_CONFIG   | <**1**:>                 | Number of different configurations for each PR region (can be expanded at any point) |
-| N_OUTSTANDING | <**8**:>              | Supported number of outstanding rd/wr request packets |
-| N_DDR_CHAN | <0:4>                    | Number of memory channels in striping mode    |
-| EN_BPSS    | <0,**1**>                | Bypass descriptors in user logic (transfer init without CPU involvement) |
-| EN_AVX     | <0,**1**>                | AVX support                                   |
-| EN_TLBF    | <0,**1**>                | Fast TLB mapping via dedicated DMA channels   |
-| EN_WB      | <0,**1**>                | Status writeback (polling on host memory)     |
-| EN_RDMA_0  | <**0**,1>                | RDMA network stack on *QSFP-0* port           |
-| EN_RDMA_1  | <**0**,1>                | RDMA network stack on *QSFP-1* port           |
-| EN_TCP_0   | <**0**,1>                | TCP/IP network stack on *QSFP-0* port         |
-| EN_TCP_1   | <**0**,1>                | TCP/IP network stack on *QSFP-1* port         |
-| EN_RPC     | <**0**,1>                | Enables receive queues for RPC invocations over the network stack |
-| EXAMPLE    | <**0**:>                 | Build one of the existing example designs     |
-| PMTU_BYTES | <:**4096**:>             | System wide packet size (bytes)               |
-| COMP_CORES | <:**4**:>                | Number of compilation cores                   |
-| PROBE_ID   | <:**1**:>                | Deployment ID                                 |
-| EN_ACLK    | <0,**1**:>               | Separate shell clock (def: 250 MHz)           |
-| EN_NCLK    | <0,**1**:>               | Separate network clock (def: 250 MHz)         |
-| EN_UCLK    | <0,**1**:>               | Separate user logic clock (def: 300 MHz)      |
-| ACLK_F     | <**250**:>               | Shell clock frequency                         |
-| NCLK_F     | <**250**:>               | Network clock frequency                       |
-| UCLK_F     | <**300**:>               | User logic clock frequency                    |
-| TLBS_S     | <**10**:>                | TLB (small) size (2 to the power of)          | 
-| TLBS_A     | <**4**:>                 | TLB (small) associativity                     | 
-| TLBL_S     | <**9**:>                 | TLB (huge) (2 to the power of)                |
-| TLBL_A     | <**2**:>                 | TLB (huge) associativity                      |
-| TLBL_BITS  | <**21**:>                | TLB (huge) page order (2 MB def.)             |
-| EN_NRU     | <**0**:1>                | NRU policy                                    |
-
-#### Create the shell and the project :
-~~~~
-$ make shell
-~~~~
-
-The project is created once the above command completes. Arbitrary user logic can then be inserted. If any of the existing examples are chosen, nothing needs to be done at this step.
-
-User logic wrappers can be found under build project directory in the **hdl/config_X** where **X** represents the chosen PR configuration. Both HLS and HDL wrappers are placed in the same directories.
-
-If multiple PR configurations are present it is advisable to put the most complex configuration in the initial one (**config_0**). Additional configurations can always be created with `make dynamic`. Explicit floorplanning should be done manually after synthesis (providing default floorplanning generally makes little sense).
-
-Project can always be managed from Vivado GUI, for those more experienced with FPGA design flows.
-
-
-#### When the user design is ready, compilation can be started with the following command :
-~~~~
-$ make compile
-~~~~
-Once the compilation finishes the initial bitstream with the static region can be loaded to the FPGA via JTAG. All compiled bitstreams, including partial ones, can be found in the build directory under **bitstreams**.
-
-#### User logic can be simulated by creating the testbench project :
-~~~~
-$ make sim
-~~~~
-The logic integration, stimulus generation and scoreboard checking should be adapted for each individual DUT.
-
-## Driver
-
-#### After the bitstream has been loaded, the driver can be compiled on the target host machine :
-~~~~
-$ cd driver && make
-~~~~
-
-#### Insert the driver into the kernel (don't forget privileges) :
-~~~~
-$ insmod fpga_drv.ko
-~~~~
-Restart of the machine might be necessary after this step if the `util/hot_reset.sh` script is not working (as is usually the case).
-
-## Build `SW`
-
-Available `sw` projects (as well as any other) can be built with the following commands :
-~~~~
-$ cd sw && mkdir build && cd build
-$ cmake ../ -DTARGET_DIR=<example_path>
-$ make
-~~~~
-
-## Publication
-
-#### If you use Coyote, cite us :
-
-```bibtex
-@inproceedings{coyote,
-    author = {Dario Korolija and Timothy Roscoe and Gustavo Alonso},
-    title = {Do {OS} abstractions make sense on FPGAs?},
-    booktitle = {14th {USENIX} Symposium on Operating Systems Design and Implementation ({OSDI} 20)},
-    year = {2020},
-    pages = {991--1010},
-    url = {https://www.usenix.org/conference/osdi20/presentation/roscoe},
-    publisher = {{USENIX} Association}
-}
+The first step is to get the source code for vFPIO and change to the evaluation branch
+```
+git clone git@github.com:TUM-DSE/vFPIO.git vFPIO
+cd vFPIO
+git checkout vfpio
 ```
 
-## Repository structure
+## For ATC evaluation testers
 
-~~~
-├── driver
-│   └── eci
-│   └── pci
-├── hw
-│   └── ext/network
-│   └── ext/eci
-│   └── hdl
-│   └── ip
-│   └── scripts
-│   └── sim
-├── sw
-│   └── examples
-│   └── include
-│   └── src
-├── util
-├── img
-~~~
+Due its special hardware requirments we provide ssh access to our evaluation machines. Please contact the paper author email address to obtain ssh keys. The machines will have the correct hardware and also software installed to run the experiments. If you run into problems you can write an email or join channel #vfpio on freenode for live chat (https://webchat.freenode.net/) for further questions.
 
-## Additional requirements
+## Specs
 
-If networking services are used, to generate the design you will need a valid [UltraScale+ Integrated 100G Ethernet Subsystem](https://www.xilinx.com/products/intellectual-property/cmac_usplus.html) license set up in `Vivado`/`Vitis`.
+### Software
+- Operating system: Linux 6.8.9 NixOS 23.11
+- [Nix](https://nixos.org/download.html): For reproducibility we use the nix package manager to download all build dependencies. We use `xilinx-shell` and `vfpio.nix` to provide a consistant runtime environment. 
+
+- Python 3.11 or newer for the script that reproduces the evaluation
+
+
+### Hardware
+- AMD EPYC 7413 CPU x2
+- Xilinx Alveo U280 FPGA x2
+- 100GB/s network interface
+- Host machine (Amy) is the main server while a second machine (Clara) is used for acting as the client during RDMA experiments.
+
+
+## Getting Started Instructions
+
+Here are the instructions to run a "Hello world"-like example, which is MD5 in our case. The software is located in the following Github repo: https://github.com/TUM-DSE/vFPIO.
+
+### Building FPGA kernel driver
+
+
+To build the driver, run the following command in the project root folder
+
+```
+nix-shell vfpio.nix
+cd driver
+make -C $(nix-build -E '(import <nixpkgs> {}).linuxPackages_6_8.kernel.dev' --no-out-link)/lib/modules/*/build M=$(pwd)
+```
+
+
+### Obtaining FPGA bitstream
+
+FPGA bitstreams are used to program the FPGA with specified applications. Compiling a bistream for our FPGA takes a long time (3-4 hours). To save time, we provided pre-compiled bitstrems in `bitstreams` folder. 
+
+Please do not change the position and the name of the bitstream folder.
+
+
+### Compiling MD5 software
+
+Run the following command to build the `io_app` software binary for running the MD5 host application with the vFPIO shell using FPGA memory.
+
+```
+nix-shell vfpio.nix
+# in the project repo root 
+mkdir build_io_app_sw && cd build_io_app_sw
+cmake ../sw/ -DTARGET_DIR=examples/io_app
+make
+```
+
+
+Set up hugepages for host application.
+
+```
+sudo sysctl -w vm.nr_hugepages=1024
+```
+
+### Running test example
+
+Due to the long time requried for compiling FPGA bitstreams (3-4 hours), we suggest using our provided bitstream for evaluation.
+
+
+Then run the experiments
+```
+# in the project repo root
+python3 reproduce.py -r -e simple 
+```
+
+This command will run the MD5 host application 10 times and calculate the average throughput.
+
+
+
+## Detailed Instructions
+
+### Compilation
+
+#### Software
+
+In the project repo, run the following command to build all host applications
+
+```
+nix-shell vfpio.nix
+# in the project repo root 
+bash compile_sw.sh
+```
+
+Or to compile specific example, identify the application you want to build from `sw/examples/`, e.g. `io_app`, then run the following commands 
+```
+nix-shell vfpio.nix
+# in the project repo root 
+mkdir build_io_app_sw && cd build_io_app_sw
+cmake ../sw/ -DTARGET_DIR=examples/io_app
+make
+```
+
+### Hardware
+
+Identify the hardware examples in `hw/hdl/operators/examples/`, e.g. `md5`, then run the following commands
+
+```
+xilinx-shell
+mkdir build_md5_io_hw && cd build_md5_io_hw
+cmake ../hw/ -DFDEV_NAME=u280 -DEXAMPLE=md5
+make shell && make compile
+```
+
+This will take 3-4 hours to complete. To save time, you can 
+
+
+### Running experiments
+
+
+#### 6.1 Performance
+
+Run the following command to set the number of huge pages in the kernel. Otherwise the host application will be killed.
+
+```
+sudo sysctl -w vm.nr_hugepages=1024
+```
+
+Use the `reproduce.py` file to run the experiments. 
+
+```
+python3 reproduce.py -r -e Exp_6_1_host_list 
+python3 reproduce.py -r -e Exp_6_1_coyote_list 
+python3 reproduce.py -r -e Exp_6_1_vfpio_list 
+python3 reproduce.py -r -e Exp_6_1_host_rdma_list 
+python3 reproduce.py -r -e Exp_6_1_coyote_rdma_list 
+python3 reproduce.py -r -e Exp_6_1_vfpio_rdma_list 
+```
+These will generate several csv files with recorded data. Run the following to create the figure for 6.1.
+
+```
+python3 plot_e2e.py
+```
+#### 6.2 Programmability
+
+Run the following command
+
+```
+nix-shell vfpio.nix
+# in the project repo root 
+bash ./measure_complexity.sh
+```
+
+
+#### 6.3 Portability
+
+The data for the vFPIO throughput in Table 5 is taken from the previous experiments. Run the following command to generate the reconfiguration time data:
+```
+python3 reproduce.py -r -e Exp_6_3_host_list 
+python3 reproduce.py -r -e Exp_6_3_hbm_list 
+python3 reproduce.py -r -e Exp_6_3_vfpio_list
+```
+
+
+#### 6.4 Scheduler
+
+Run the following command to obtain data for Figure 6 and 7. 
+```
+python3 reproduce.py -r -e Exp_6_4_1_cycles_list 
+python3 reproduce.py -r -e Exp_6_4_1_cntx_list 
+python3 reproduce.py -r -e Exp_6_4_2_host_list 
+python3 reproduce.py -r -e Exp_6_4_2_fpga_list 
+```
+
+
+#### 6.5 Resource Overheads
+
+Compile two repositories with Coyote and vFPIO.
+
+For Coyote
+```
+# requires xilinx-shell
+git checkout coyote-comp
+mkdir build_io_coyote_hw && cd build_io_coyote_hw
+cmake ../hw/ -DFDEV_NAME=u280 -DEXAMPLE=io_switch_ndp
+make && make compile
+```
+
+For vFPIO
+
+```
+# requires xilinx-shell
+git checkout vFPIO
+mkdir build_io_vfpio_hw && cd build_io_vfpio_hw
+cmake ../hw/ -DFDEV_NAME=u280 -DEXAMPLE=io_switch_ndp
+make && make compile
+```
+To extract the two resource utilization files, run the following scripts
+
+```
+bash ./extract_csv.sh
+```
+
+This will generate two files: `util_coyote.csv` and `util_vfpio.csv`. Do not change the filenames, and run the next command to extract resource utilization of each component:
+
+```
+# in project root dir (vFPIO/)
+python3 reproduce -e Exp_6_5_resource_util
+```
+
+
+
+
+## Potential issues
+
+### Driver issue
+Something wrong may happen when loading or unloading the driver. In that case, the easiest solution is to reboot. 
+
+
+### No files in home directory after reboot
+Sometimes after reboot, there will only be system folders and no user files. Keep rebooting and it will get fixed eventually. 
+
+
+### Terminal cursor disappear after reproduce.py had an issue
+
+This will happen when the script does not exit normally. Type `reset` to solve the issue.
+
+
+<!-- ### Require IP 'll_compress_2'
+ -->
+
+
+
+<!--  
+```
+bash ./extract_csv.sh
+```
+```
+open_project build_io_hw/lynx/lynx.xpr
+open_run impl_1
+report_utilization -name util_1 -spreadsheet_file util_coyote_io.xlsx
+report_utilization -hierarchical  -file util_vfpio_test.csv
+ssconvert util_vfpio.xlsx util_vfpio.csv
+```
+cmake ../hw/ -DFDEV_NAME=u50 -DEXAMPLE=caribou -DN_REGIONS=2 -DN_CONFIG=10 -DUCLK_F=250 -DACLK_F=250 -DCOMP_CORES=24
+
+-->
