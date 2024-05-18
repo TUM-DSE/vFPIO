@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
                                 ((size + pageSize - 1) / pageSize);
     std::cout << "n_pages: " << n_pages << std::endl;
     cProcess cproc(0, getpid());
-
+ 
     // get memory pointer
     void *mem = (uint64_t *)cproc.getMem({huge ? CoyoteAlloc::HUGE_2M : CoyoteAlloc::REG_4K, (uint32_t)n_pages});
 
@@ -458,6 +458,7 @@ int main(int argc, char *argv[])
             io_dev = IODevs::HOST_MEM;
             io_target = 0x01;
         }
+        std::cout << "io_target: " << io_target << std::endl;
 
         auto io_start_time = std::chrono::high_resolution_clock::now();
         // io_dev = ioDev;
@@ -470,7 +471,8 @@ int main(int argc, char *argv[])
         }
         auto io_end_time = std::chrono::high_resolution_clock::now();
         double io_time = std::chrono::duration_cast<std::chrono::microseconds>(io_end_time - io_start_time).count();
-        std::cout << "io time " << io_time << "us" << std::endl;
+        cproc.ioSwDbg();
+        std::cout << "io_time " << io_time << "us" << std::endl;
 
     }
 

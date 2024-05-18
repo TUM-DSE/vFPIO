@@ -173,15 +173,16 @@ int main(int argc, char *argv[])
                         end_time = std::chrono::high_resolution_clock::now();
                         time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - base_time).count();
                         end[0] = time;
-            for(int i = 0; i < n_regions; i++) {
-                std::cout << "time " << i << " " << (end[i] - start[i]) / n_reps << std::endl;
-            }
+            // for(int i = 0; i < n_regions; i++) {
+            //     std::cout << "time " << i << " " << (end[i] - start[i]) / n_reps << std::endl;
+            // }
         };
         bench.runtime(benchmark_thr);
         std::cout << std::fixed << std::setprecision(2);
-        std::cout << "Average: " << bench.getAvg() << std::endl;
+        // std::cout << "Average: " << bench.getAvg() << std::endl;
         std::cout << "Lat: " << std::setw(8) << bench.getAvg() / (n_reps) << " ns" << std::endl;
-        std::cout << "Size: " << std::setw(8) << curr_size << ", thr: " << std::setw(8) << (n_regions * 1000 * curr_size) / (bench.getAvg() / n_reps) << " MB/s";
+        std::cout << "Size: " << std::setw(8) << curr_size << ", thr: " << std::setw(8) << 
+                    (n_regions * 1000 * curr_size) / (bench.getAvg() / n_reps) << " MB/s" << std::endl;
 
         // Latency test
         auto benchmark_lat = [&]() {

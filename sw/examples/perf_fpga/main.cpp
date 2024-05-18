@@ -160,10 +160,12 @@ int main(int argc, char *argv[])
             time_bench_rd.emplace_back(benchmark_run(cproc, hMem, BenchOper::START_RD));
             time_bench_wr.emplace_back(benchmark_run(cproc, hMem, BenchOper::START_WR));
         }
+        // std::cout << std::setw(8) << curr_size << " [bytes], RD: " 
+        //     << std::setw(8) << vctr_avg(time_bench_rd) << " [ns], WR: " 
+        //     << std::setw(8) << vctr_avg(time_bench_wr) << " [ns]" << std::endl;
         std::cout << std::setw(8) << curr_size << " [bytes], RD: " 
-            << std::setw(8) << vctr_avg(time_bench_rd) << " [ns], WR: " 
-            << std::setw(8) << vctr_avg(time_bench_wr) << " [ns]" << std::endl;
-
+            << std::setw(8) << vctr_avg(time_bench_rd) / clkNs << " [cycles], WR: " 
+            << std::setw(8) << vctr_avg(time_bench_wr) / clkNs << " [cycles]" << std::endl;
         time_bench_rd.clear();
         time_bench_wr.clear();
         curr_size *= 2;
