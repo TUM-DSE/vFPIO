@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
         };
         bench.runtime(benchmark_thr);
         std::cout << std::fixed << std::setprecision(2);
-        std::cout << std::setw(8) << app_bytes << " [bytes], thoughput: " 
+        std::cout << std::setw(8) << app_bytes << " [bytes], throughput: " 
                   << std::setw(8) << ((1 + oper) * ((1000 * app_bytes))) / ((bench.getAvg()) / n_reps_thr) << " [MB/s], latency: "
                   << ((bench.getAvg()) / n_reps_thr / 1000) << "us"; 
 

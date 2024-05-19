@@ -17,7 +17,7 @@ from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, C
 # from matplotlib import pyplot as plt
 
 class benchmark:
-    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=5, app_list=[]):
+    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=5, timeout=10, app_list=[]):
         self.name = name
         self.bitstream = bitstream
         self.input_size = input_size
@@ -30,6 +30,7 @@ class benchmark:
         self.prefix_2 = prefix_2
         self.repeat = repeat
         self.app_list = app_list
+        self.timeout = timeout
 
 
 def average(lst):
@@ -305,7 +306,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     sw_dir = bench_object.sw
     options = bench_object.options
     repeat = bench_object.repeat
-
+    timeout = bench_object.timeout
     # get timestamp
     now = datetime.now()
     timestamp = now.strftime("%m_%d_%H_%M")
@@ -320,12 +321,12 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     ]
     cmd += options
     print("Running benchmark: " + bench_name)
-    print("bistream: " + bistream_file)
+    print("bitstream: " + bistream_file)
     print("cmd: ")
     print(cmd)
 
     logging.info("Running benchmark: " + bench_name)
-    logging.info("bistream: " + bistream_file)
+    logging.info("bitstream: " + bistream_file)
     logging.info("cmd: ")
     logging.info(cmd)
     print("output file: " + out_file)
@@ -343,7 +344,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
                     stdout=f,
                     stderr=f,
                     env=os.environ,
-                    timeout = 10,
+                    timeout = timeout,
                     check=True,
                 )
             except:
@@ -882,7 +883,7 @@ def main():
     nw_host = benchmark("nw_host", "cyt_top_host_base_io_112", "build_nw_host_sw", [])
     matmul_host = benchmark("matmul_host", "cyt_top_host_base_io_112", "build_matmul_host_sw", [])
     sha3_host = benchmark("sha3_host", "cyt_top_host_base_io_112", "build_sha3_host_sw", [])
-    rng_host = benchmark("rng_host", "cyt_top_bram_app_io_116", "build_rng_host_sw", [])
+    rng_host = benchmark("rng_host", "cyt_top_bram_app_io_116", "build_rng_host_sw", [], timeout=18)
     gzip_host = benchmark("gzip_host", "cyt_top_host_base_io_112", "build_gzip_host_sw", [])
 
 
@@ -1118,12 +1119,12 @@ def main():
     Exp_6_1_vfpio_list = {
         "aes_vfpio": aes_vfpio,
         "sha256_vfpio": sha256_vfpio,
-        # "md5_vfpio": md5_vfpio,
-        # "nw_vfpio": nw_vfpio,
-        # "matmul_vfpio": matmul_vfpio,
-        # "sha3_vfpio": sha3_vfpio,
-        # "rng_vfpio": rng_vfpio,
-        # "gzip_vfpio": gzip_vfpio
+        "md5_vfpio": md5_vfpio,
+        "nw_vfpio": nw_vfpio,
+        "matmul_vfpio": matmul_vfpio,
+        "sha3_vfpio": sha3_vfpio,
+        "rng_vfpio": rng_vfpio,
+        "gzip_vfpio": gzip_vfpio
     }
 
 
@@ -1200,15 +1201,15 @@ def main():
 
     if exp == "simple":
         print("Running simple example.")
-        # for bench_name, bench_object in simple_list.items():
-        #     output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-        #     parse_6_1_output(output_result)
-
-        for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
+        for bench_name, bench_object in simple_list.items():
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_4_2_fpga_output(output_result)
+            parse_6_1_output(output_result)
+
+        # for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
+        #     # print(bench_object.name)
+        #     print("--------------------------------------------")
+        #     output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+        #     parse_6_4_2_fpga_output(output_result)
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")

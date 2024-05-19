@@ -69,7 +69,8 @@ int main(int argc, char *argv[])
 
     double seconds = diff.count();
     double throughput = ((double)(ddefSize * 65536)) / seconds / (1 << 20);
-    printf("cpu rng: %d bytes in %g seconds for %g MiB/s\n", ddefSize * 65536, seconds, throughput);
+    printf("cpu rng: %d bytes in %g seconds\n", ddefSize * 65536, seconds);
+    printf("throughput %g MiB/s\n", throughput);
 
     return 0;
 }
