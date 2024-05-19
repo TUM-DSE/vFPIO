@@ -290,7 +290,7 @@ void Reconfig::reconfigure(void *vaddr, uint32_t len)
     double time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 
     Printer(vfid)<<"Reconfiguration completed, addr="<<std::hex<<vaddr<<", len"<<std::dec<<len<<endl;
-    Printer(vfid)<< "Reconfig time " << time/1000 << " ms" << std::endl;
+    Printer(vfid)<< "Reconfig_time " << time/1000 << " ms" << std::endl;
 }
 
 /**

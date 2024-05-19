@@ -17,7 +17,7 @@ from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, C
 # from matplotlib import pyplot as plt
 
 class benchmark:
-    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=10, app_list=[]):
+    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=5, app_list=[]):
         self.name = name
         self.bitstream = bitstream
         self.input_size = input_size
@@ -57,7 +57,7 @@ def remote_cmd(ssh_host: str, args: List[str]) -> None:
     run(["ssh", ssh_host, "--"] + args)
 
 
-def parse_output(filename):
+def parse_6_1_output(filename):
     res = []
     with open(filename, 'r', errors='replace') as file:
         for line in file:
@@ -78,7 +78,31 @@ def parse_output(filename):
     return res
 
 
-def parse_6_3_output(filename):
+def parse_6_3_pr_output(filename):
+    res = []
+    res_tmp = []
+    with open(filename, 'r', errors='replace') as file:
+        for line in file:
+            # print(line.rstrip())
+            if line != '':
+                line = line.split()
+                # print(line)
+                if "Reconfig_time" in line:
+                    # print(line)
+                    res_tmp.append(float(line[2]))
+
+    # remove dummy data 
+    del res_tmp[1::2]
+
+    for i in range(len(res_tmp)//2):
+        res.append(res_tmp[i] + res_tmp[i+1])
+    print(res)
+    logging.info(res)
+
+    return res
+
+
+def parse_6_3_vio_output(filename):
     res = []
     res_tmp = []
     with open(filename, 'r', errors='replace') as file:
@@ -197,7 +221,7 @@ def parse_rdma_output(filename):
             # print(line.rstrip())
             if line != '':
                 line = line.split()
-                # print(line)
+                print(line)
                 # special handling for the TCU abort test
                 if "throughput:" in line:
                     # print(line)
@@ -455,7 +479,7 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
                     server_process.kill()
 
     parse_rdma_output(server_out_file)
-    return
+    return server_out_file
 
 
 def pr_client(bench_object, out_file):
@@ -470,7 +494,7 @@ def pr_client(bench_object, out_file):
 
     for app in app_list:
         cmd_app = cmd_2 + [app]
-        print("cmd_app: ")
+        print("\ncmd_app: ")
         print(cmd_app)
         with open(out_file, "w+") as f:
             try: 
@@ -483,7 +507,7 @@ def pr_client(bench_object, out_file):
                     text = True,
                     # check=True,
                 )
-                print("finished running " + app)
+                # print("finished running " + app)
                 # print(client_process.stdout)
             except:
                 print("Something is wrong with the pr client application.")
@@ -539,29 +563,32 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     print("Running host application.")
 
     with open(server_out_file, "w+") as f:
-        server_process = subprocess.Popen(cmd,
-                        stdout = f, 
-                        stderr = f,
-                        # stdout = subprocess.PIPE, 
-                        # stderr = subprocess.PIPE,
-                        text = True,
-                        )
-            
-        thread = Thread(target=pr_client, args=(bench_object, client_out_file))
+        try: 
+            server_process = subprocess.Popen(cmd,
+                            stdout = f, 
+                            stderr = f,
+                            # stdout = subprocess.PIPE, 
+                            # stderr = subprocess.PIPE,
+                            text = True,
+                            )
+                
+            thread = Thread(target=pr_client, args=(bench_object, client_out_file))
 
-        thread.start()
-        output, errors = server_process.communicate()
+            thread.start()
+            output, errors = server_process.communicate()
 
-        print('Waiting for the thread...')
-        thread.join()
+            print('Waiting for the thread...')
+            thread.join()
 
-        print("about to kill")
-        server_process.kill()
-        # print(output)
+            print("about to kill")
+            server_process.kill()
+            # print(output)
+        except:
+            server_process.kill()
 
     # parse_output(out_file)
 
-    return
+    return server_out_file
 
 
 def run_cntx_benchmark(exp_res_path, bench_object, reprogram):
@@ -1023,13 +1050,15 @@ def main():
                                 app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
     pr_part2_host = benchmark("pr_part2_coyote", "cyt_top_caribou3_u280_host_1218", "build_pr_server_sw", 
                                 ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_host")], "build_pr_client_sw", 
-                                app_list = ["sha256", "md5", "rng", "teardown"])
+                                app_list = ["sha256", "md5", "teardown"])
+                                # app_list = ["sha256", "md5", "rng", "teardown"])
     pr_part1_hbm = benchmark("pr_part1_vfpio", "cyt_top_caribou_u280_hbm_1214", "build_pr_server_sw", 
                                 ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou_u280_hbm")], "build_pr_client_sw", 
                                 app_list = ["aes", "nw", "matmul", "sha3", "gzip", "teardown"])
     pr_part2_hbm = benchmark("pr_part2_vfpio", "cyt_top_caribou3_u280_hbm_1218", "build_pr_server_sw", 
                                 ["BITSTREAM_DIR=" + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_hbm")], "build_pr_client_sw", 
-                                app_list = ["sha256", "md5", "rng", "teardown"])
+                                app_list = ["sha256", "md5", "teardown"])
+                                # app_list = ["sha256", "md5", "rng", "teardown"])
     
     vfpio_switch = benchmark("vfpio_switch", "cyt_top_md5_io_106", "build_io_switch_time_sw", [], repeat=1)
     
@@ -1099,26 +1128,14 @@ def main():
 
 
     Exp_6_1_host_rdma_list = {
-        # "aes_vfpio": aes_vfpio,
-        # "sha256_vfpio": sha256_vfpio,
+        "rdma_aes_host": rdma_aes_host,
+        # "rdma_sha256_host": rdma_sha256_host,
         # "md5_vfpio": md5_vfpio,
         # "nw_vfpio": nw_vfpio,
         # "matmul_vfpio": matmul_vfpio,
         # "sha3_vfpio": sha3_vfpio,
         # "rng_vfpio": rng_vfpio,
         # "gzip_vfpio": gzip_vfpio
-    }
-
-
-    Exp_6_1_vfpio_rdma_list = {
-        # "rdma_aes_vfpio": rdma_aes_vfpio,
-        # "rdma_sha256_vfpio": rdma_sha256_vfpio,
-        "rdma_md5_vfpio": rdma_md5_vfpio,
-        "rdma_nw_vfpio": rdma_nw_vfpio,
-        # "rdma_matmul_vfpio": rdma_matmul_vfpio,
-        # "rdma_sha3_vfpio": rdma_sha3_vfpio,
-        # "rdma_rng_vfpio": rdma_rng_vfpio,
-        "rdma_gzip_vfpio": rdma_gzip_vfpio
     }
 
     Exp_6_1_coyote_rdma_list = {
@@ -1132,12 +1149,23 @@ def main():
         # "rdma_gzip_coyote": rdma_gzip_coyote
     }
 
+    Exp_6_1_vfpio_rdma_list = {
+        # "rdma_aes_vfpio": rdma_aes_vfpio,
+        # "rdma_sha256_vfpio": rdma_sha256_vfpio,
+        "rdma_md5_vfpio": rdma_md5_vfpio,
+        "rdma_nw_vfpio": rdma_nw_vfpio,
+        # "rdma_matmul_vfpio": rdma_matmul_vfpio,
+        # "rdma_sha3_vfpio": rdma_sha3_vfpio,
+        # "rdma_rng_vfpio": rdma_rng_vfpio,
+        "rdma_gzip_vfpio": rdma_gzip_vfpio
+    }
+
     Exp_6_3_host_list = {
         "pr_part1_host": pr_part1_host,
         "pr_part2_host": pr_part2_host,
     }
 
-    Exp_6_3_hmb_list = {
+    Exp_6_3_hbm_list = {
         "pr_part1_hbm": pr_part1_hbm,
         "pr_part2_hbm": pr_part2_hbm,
     }
@@ -1173,14 +1201,14 @@ def main():
     if exp == "simple":
         print("Running simple example.")
         # for bench_name, bench_object in simple_list.items():
+        #     output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+        #     parse_6_1_output(output_result)
+
         for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_4_2_fpga_output(output_result)
-
-            # run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-        # extract_util("util_coyote.csv", "util_test.csv")
 
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
@@ -1188,7 +1216,7 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_output(output_result)
+            parse_6_1_output(output_result)
 
     elif exp == "Exp_6_1_coyote_list":
         print("Running Exp_6_1_coyote_list example.")
@@ -1196,31 +1224,49 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_output(output_result)
+            parse_6_1_output(output_result)
     elif exp == "Exp_6_1_vfpio_list":
         print("Running Exp_6_1_vfpio_list example.")
         for bench_name, bench_object in Exp_6_1_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_output(output_result)
+            parse_6_1_output(output_result)
+
+    elif exp == "Exp_6_1_host_rdma_list":
+        for bench_name, bench_object in Exp_6_1_host_rdma_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+            parse_6_1_output(output_result)
+
+    elif exp == "Exp_6_1_coyote_rdma_list":
+        for bench_name, bench_object in Exp_6_1_coyote_rdma_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+            parse_6_1_output(output_result)
     
     elif exp == "Exp_6_3_host_list":
         for bench_name, bench_object in Exp_6_3_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)     
-    elif exp == "Exp_6_3_hmb_list":
-        for bench_name, bench_object in Exp_6_3_hmb_list.items():
+            output_result = run_pr_benchmark(exp_res_path, bench_object ,reprogram)
+            parse_6_3_pr_output(output_result)    
+            
+    elif exp == "Exp_6_3_hbm_list":
+        for bench_name, bench_object in Exp_6_3_hbm_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)
+            output_result = run_pr_benchmark(exp_res_path, bench_object ,reprogram)
+            parse_6_3_pr_output(output_result)
+
     elif exp == "Exp_6_3_vfpio_list":
         for bench_name, bench_object in Exp_6_3_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_3_output(output_result)
+            parse_6_3_vio_output(output_result)
     elif exp == "Exp_6_4_1_cycle_list":
         for bench_name, bench_object in Exp_6_4_1_cycle_list.items():
             # print(bench_object.name)
@@ -1243,7 +1289,7 @@ def main():
         for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
-            output_result = run_cntx_benchmark(exp_res_path, bench_object, reprogram)
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_4_2_fpga_output(output_result)
     elif exp == "Exp_6_5_resource_util":
         print("--------------------------------------------")
@@ -1255,10 +1301,11 @@ def main():
         #     print("--------------------------------------------")
         #     run_benchmark(exp_res_path, bench_object, reprogram)
 
-        for bench_name, bench_object in Exp_6_4_2_vfpio_list.items():
-            # print(bench_object.name)
-            print("--------------------------------------------")
-            run_pr_benchmark(exp_res_path, bench_object ,reprogram)
+        # for bench_name, bench_object in Exp_6_4_2_vfpio_list.items():
+        #     # print(bench_object.name)
+        #     print("--------------------------------------------")
+        #     run_pr_benchmark(exp_res_path, bench_object ,reprogram)
+        print("No evaluation selected.")
 
     print("--------------------------------------------")
     print("exp result path: " + exp_res_path)

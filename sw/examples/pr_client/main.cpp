@@ -513,7 +513,7 @@ int main(int argc, char* argv[])
         serverless_exit();
         return 0;
     }
-
+    // higher than 2 some applications (e.g., aes) will stuck
     for (int i = 0; i < 2; i++) {
         printf("i = %d\n", i);
         puts("-------------------------------");
