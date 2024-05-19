@@ -205,6 +205,12 @@ logic [31:0] b_data_out_wr;
 logic wr_clear;
 logic [PID_BITS-1:0] wr_clear_addr;
 
+logic [63:0] time_counter;
+logic count_enabled;
+logic transfer_start;
+assign req_count_debug = slv_reg[REQ_COUNT_REG][31:0];
+assign transfer_start = slv_reg[CTRL_REG][CTRL_START_RD] || slv_reg[CTRL_REG][CTRL_START_WR];
+
 `ifdef EN_WB
 metaIntf #(.STYPE(wback_t)) wback [N_WBS] ();
 metaIntf #(.STYPE(wback_t)) wback_q [N_WBS] ();
@@ -395,6 +401,11 @@ localparam integer TCP_1_OPEN_CON_STS_REG                   = 42;
 localparam integer TCP_1_OPEN_PORT_STS_REG                  = 43;
 localparam integer TCP_1_CLOSE_CON_REG                      = 44;
 
+// 51 (RO) : Cycles for transaction 
+localparam integer REQ_COUNT_REG                            = 51;
+// 52 (RO) : Cycles for transaction 
+localparam integer TIME_STAT_REG                            = 52;
+
 /*
 ila_cnfg_slave ila_cnfg_slave
 (
@@ -430,6 +441,32 @@ ila_cnfg_slave ila_cnfg_slave
   .probe28(axi_arburst) //2
  ); 
 */
+
+// cycle counter logic
+always_ff @(posedge aclk) begin
+    if ( aresetn == 1'b0 ) begin
+        time_counter <= 0;
+        count_enabled <= 0;
+    end
+    else begin
+        if (transfer_start && count_enabled != 1) begin
+            count_enabled <= 1;
+        end
+
+        if (rd_clear) begin
+            time_counter <= 0;
+        end
+
+        if (count_enabled) begin
+            time_counter <= time_counter + 1;
+        end
+
+        if (req_count_debug > 0 && b_data_out_rd == req_count_debug && count_enabled) begin
+            count_enabled <= 0;
+        end
+    end
+end
+
 // ---------------------------------------------------------------------------------------- 
 // Write process 
 // ----------------------------------------------------------------------------------------
@@ -441,6 +478,7 @@ always_ff @(posedge aclk) begin
 
         slv_reg[CTRL_REG][CTRL_BYTES*8-1:0] <= 0;
         slv_reg[CTRL_DP_REG_SET][CTRL_BYTES*8-1:0] <= 0;
+        slv_reg[TIME_STAT_REG][63:0] <= 0;
 
         irq_pending <= 1'b0;
 
@@ -467,6 +505,7 @@ always_ff @(posedge aclk) begin
     end
     else begin
         slv_reg[CTRL_REG][CTRL_BYTES*8-1:0] <= 0;
+        slv_reg[TIME_STAT_REG][63:0] <= time_counter;
 
 `ifdef EN_RDMA_0
         rdma_0_post <= 1'b0;
@@ -518,6 +557,12 @@ always_ff @(posedge aclk) begin
                     for (int i = 0; i < CTRL_BYTES; i++) begin
                         if(s_axim_ctrl.wstrb[i]) begin
                             slv_reg[CTRL_DP_REG_SET][(i*8)+:8] <= slv_reg[CTRL_DP_REG_SET][(i*8)+:8] & ~s_axim_ctrl.wdata[(i*8)+:8];
+                        end
+                    end
+                REQ_COUNT_REG:
+                    for (int i = 0; i < 2; i++) begin 
+                        if(s_axim_ctrl.wstrb[i]) begin
+                            slv_reg[REQ_COUNT_REG][(i*8)+:8] <= s_axim_ctrl.wdata[(i*8)+:8];
                         end
                     end
 
@@ -726,6 +771,9 @@ always_ff @(posedge aclk) begin
         [STAT_REG:STAT_REG]: begin
             axi_rdata[31:0] <= {wr_queue_used[15:0], rd_queue_used[15:0]};
             axi_rdata[255:32] <= slv_reg[STAT_REG][255:32];        
+        end
+        [TIME_STAT_REG:TIME_STAT_REG]: begin
+            axi_rdata[63:0] <= slv_reg[TIME_STAT_REG][63:0];
         end
 
 `ifdef EN_WB
