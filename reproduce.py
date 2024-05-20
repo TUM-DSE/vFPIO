@@ -17,7 +17,7 @@ from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, C
 # from matplotlib import pyplot as plt
 
 class benchmark:
-    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=5, timeout=10, app_list=[]):
+    def __init__(self, name, bitstream, sw, options=[], sw_2="", options_2=[], prefix_1=[], prefix_2=[], input_size=1024, output_size=1024, repeat=5, timeout=10, app_list=[], tags=[]):
         self.name = name
         self.bitstream = bitstream
         self.input_size = input_size
@@ -31,32 +31,68 @@ class benchmark:
         self.repeat = repeat
         self.app_list = app_list
         self.timeout = timeout
-
+        self.tags = tags
 
 def average(lst):
     return round(sum(lst) / len(lst), 2)
 
 
-def run(
-    cmd: List[str],
-    extra_env: Dict[str, str] = {},
-    stdout: int = subprocess.PIPE,
-    input: Optional[str] = None,
-    check: bool = True
-) -> "subprocess.CompletedProcess[Text]":
-    env = os.environ.copy()
-    env.update(extra_env)
-    env_string = []
-    for k, v in extra_env.items():
-        env_string.append(f"{k}={v}")
-    print(f"$ {' '.join(env_string)} {' '.join(cmd)}")
-    return subprocess.run(
-        cmd, cwd=ROOT, stdout=stdout, check=check, env=env, text=True, input=input
-    )
+def write_to_file(output_filename, data, tags):
+    out = []
+    with open(output_filename, 'a') as file:
+        csvwriter = csv.writer(file)
+        out.append(tags[0])
+        out.append(tags[1])
+        out.extend(data)
 
-def remote_cmd(ssh_host: str, args: List[str]) -> None:
-    run(["ssh", ssh_host, "--"] + args)
+        csvwriter.writerow(out)
+    print("write finished")
 
+
+def write_6_4_1_to_file(output_filename, data, tags):
+    out = []
+    with open(output_filename, 'a') as file:
+        csvwriter = csv.writer(file)
+        if tags[0] == "RR":
+            out.append(tags[0])
+            out.extend(data)
+            csvwriter.writerow(out)
+        elif tags[0] == "vfpio":
+            out_hp = ["HP"]
+            out_hp.append(data[2])
+            out_lp1 = ["LP-1"]
+            out_lp1.append(data[0])
+            out_lp2 = ["LP-2"]
+            out_lp2.append(data[1])
+
+            csvwriter.writerow(out_hp)
+            csvwriter.writerow(out_lp1)
+            csvwriter.writerow(out_lp2)
+    print("write finished")
+
+def write_6_4_1_2_to_file(output_filename, data, tags):
+    size_list = ["2", "4", "16", "32"]
+    with open(output_filename, 'a') as file:
+        csvwriter = csv.writer(file)
+        for i in range(len(size_list)):
+            out = [size_list[i]]
+            out.append(data[i]/1000)
+            out.append(tags[0])
+            csvwriter.writerow(out)
+
+    print("write finished")
+
+def write_6_4_2_to_file(output_filename, data, tags):
+    size_list = ["1", "2", "4", "8", "16", "32", "64", "128", "256"]
+    with open(output_filename, 'a') as file:
+        csvwriter = csv.writer(file)
+        for i in range(len(size_list)):
+            out = [size_list[i]]
+            out.append(data[i])
+            out.append(tags[0])
+            csvwriter.writerow(out)
+
+    print("write finished")
 
 def parse_6_1_output(filename):
     res = []
@@ -877,47 +913,46 @@ def main():
     cmd = ["sudo", "sysctl", "-w", "vm.nr_hugepages=1024"]
     subprocess.run(cmd, capture_output=True, text=True)
 
-    aes_host = benchmark("aes_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "aes"])
-    sha256_host = benchmark("sha256_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "sha256"])
-    md5_host = benchmark("md5_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "md5"])
-    nw_host = benchmark("nw_host", "cyt_top_host_base_io_112", "build_nw_host_sw", [])
-    matmul_host = benchmark("matmul_host", "cyt_top_host_base_io_112", "build_matmul_host_sw", [])
-    sha3_host = benchmark("sha3_host", "cyt_top_host_base_io_112", "build_sha3_host_sw", [])
-    rng_host = benchmark("rng_host", "cyt_top_bram_app_io_116", "build_rng_host_sw", [], timeout=18)
-    gzip_host = benchmark("gzip_host", "cyt_top_host_base_io_112", "build_gzip_host_sw", [])
-
-
-    # 
-    aes_coyote = benchmark("aes_coyote", "cyt_top_aes_hbm_104", "build_io_app_sw", ["-o", "aes", "-h", "-f"], repeat = 2)
-    aes_vfpio = benchmark("aes_vfpio", "cyt_top_aes_io_104", "build_io_app_sw", ["-o", "aes", "-i", "-h", "-f"], repeat = 2)
+    aes_host = benchmark("aes_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "aes"], tags=["aes", "Host"])
+    sha256_host = benchmark("sha256_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "sha256"], tags=["sha256", "Host"])
+    md5_host = benchmark("md5_host", "cyt_top_host_base_io_112", "build_aes_sha_md5_host_sw", ["-o", "md5"], tags=["md5", "Host"])
+    nw_host = benchmark("nw_host", "cyt_top_host_base_io_112", "build_nw_host_sw", [], tags=["nw", "Host"])
+    matmul_host = benchmark("matmul_host", "cyt_top_host_base_io_112", "build_matmul_host_sw", [], tags=["matmul", "Host"])
+    sha3_host = benchmark("sha3_host", "cyt_top_host_base_io_112", "build_sha3_host_sw", [], tags=["sha3", "Host"])
+    rng_host = benchmark("rng_host", "cyt_top_bram_app_io_116", "build_rng_host_sw", [], timeout=18, tags=["rng", "Host"])
+    gzip_host = benchmark("gzip_host", "cyt_top_host_base_io_112", "build_gzip_host_sw", [], tags=["gzip", "Host"])
 
     # 
-    sha256_coyote = benchmark("sha256_coyote", "cyt_top_sha256_hbm_104", "build_io_app_sw", ["-o", "sha256", "-h", "-f"], repeat = 2)
-    sha256_vfpio = benchmark("sha256_vfpio", "cyt_top_sha256_io_104", "build_io_app_sw", ["-o", "sha256", "-i", "-h", "-f"], repeat = 2)
+    aes_coyote = benchmark("aes_coyote", "cyt_top_aes_hbm_104", "build_io_app_sw", ["-o", "aes", "-h", "-f"], repeat = 2, tags=["aes", "Coyote"])
+    aes_vfpio = benchmark("aes_vfpio", "cyt_top_aes_io_104", "build_io_app_sw", ["-o", "aes", "-i", "-h", "-f"], repeat = 2, tags=["aes", "vFPIO"])
 
     # 
-    md5_coyote = benchmark("md5_coyote", "cyt_top_md5_hbm_104", "build_io_app_sw", ["-o", "md5", "-h", "-f"])
-    md5_vfpio = benchmark("md5_vfpio", "cyt_top_md5_io_106", "build_io_app_sw", ["-o", "md5", "-i", "-h", "-f"])
+    sha256_coyote = benchmark("sha256_coyote", "cyt_top_sha256_hbm_104", "build_io_app_sw", ["-o", "sha256", "-h", "-f"], repeat = 2, tags=["sha256", "Coyote"])
+    sha256_vfpio = benchmark("sha256_vfpio", "cyt_top_sha256_io_104", "build_io_app_sw", ["-o", "sha256", "-i", "-h", "-f"], repeat = 2, tags=["sha256", "vFPIO"])
+
+    # 
+    md5_coyote = benchmark("md5_coyote", "cyt_top_md5_hbm_104", "build_io_app_sw", ["-o", "md5", "-h", "-f"], tags=["md5", "Coyote"])
+    md5_vfpio = benchmark("md5_vfpio", "cyt_top_md5_io_106", "build_io_app_sw", ["-o", "md5", "-i", "-h", "-f"], tags=["md5", "vFPIO"])
 
     # input: 4160 B, output: 16384 B
-    nw_coyote = benchmark("nw_coyote", "cyt_top_nw_hbm_104", "build_io_app_sw", ["-o", "nw", "-h", "-f"])
-    nw_vfpio = benchmark("nw_vfpio", "cyt_top_nw_io_106", "build_io_app_sw", ["-o", "nw", "-i", "-h", "-f"])
+    nw_coyote = benchmark("nw_coyote", "cyt_top_nw_hbm_104", "build_io_app_sw", ["-o", "nw", "-h", "-f"], tags=["nw", "Coyote"])
+    nw_vfpio = benchmark("nw_vfpio", "cyt_top_nw_io_106", "build_io_app_sw", ["-o", "nw", "-i", "-h", "-f"], tags=["nw", "vFPIO"])
 
     # input: 65536 B, output: 32768 B
-    matmul_coyote = benchmark("matmul_coyote", "cyt_top_matmul_hbm_104", "build_io_app_sw", ["-o", "mat", "-h", "-f"])
-    matmul_vfpio = benchmark("matmul_vfpio", "cyt_top_matmul_io_106", "build_io_app_sw", ["-o", "mat", "-i", "-h", "-f"])
+    matmul_coyote = benchmark("matmul_coyote", "cyt_top_matmul_hbm_104", "build_io_app_sw", ["-o", "mat", "-h", "-f"], tags=["matmul", "Coyote"])
+    matmul_vfpio = benchmark("matmul_vfpio", "cyt_top_matmul_io_106", "build_io_app_sw", ["-o", "mat", "-i", "-h", "-f"], tags=["matmul", "vFPIO"])
 
     # input: 128 B, output: 64 B
-    sha3_coyote = benchmark("sha3_coyote", "cyt_top_keccak_hbm_104", "build_io_app_sw", ["-o", "sha3", "-h", "-f"])
-    sha3_vfpio = benchmark("sha3_vfpio", "cyt_top_keccak_io_106", "build_io_app_sw", ["-o", "sha3", "-i", "-h", "-f"])
+    sha3_coyote = benchmark("sha3_coyote", "cyt_top_keccak_hbm_104", "build_io_app_sw", ["-o", "sha3", "-h", "-f"], tags=["sha3", "Coyote"])
+    sha3_vfpio = benchmark("sha3_vfpio", "cyt_top_keccak_io_106", "build_io_app_sw", ["-o", "sha3", "-i", "-h", "-f"], tags=["sha3", "vFPIO"])
 
     # input: 64 B, output: 4095 B
-    rng_coyote = benchmark("rng_coyote", "cyt_top_rng_hbm_107", "build_io_app_sw", ["-o", "rng", "-h", "-f"])
-    rng_vfpio = benchmark("rng_vfpio", "cyt_top_rng_io_107", "build_io_app_sw", ["-o", "rng", "-i", "-h", "-f"])
+    rng_coyote = benchmark("rng_coyote", "cyt_top_rng_hbm_107", "build_io_app_sw", ["-o", "rng", "-h", "-f"], tags=["rng", "Coyote"])
+    rng_vfpio = benchmark("rng_vfpio", "cyt_top_rng_io_107", "build_io_app_sw", ["-o", "rng", "-i", "-h", "-f"], tags=["rng", "vFPIO"])
 
     # input: 512 B, output: 128 B
-    gzip_coyote = benchmark("gzip_coyote", "cyt_top_gzip_hbm_107", "build_io_app_sw", ["-o", "gzip", "-h", "-f"])
-    gzip_vfpio = benchmark("gzip_vfpio", "cyt_top_gzip_io_107", "build_io_app_sw", ["-o", "gzip", "-i", "-h", "-f"])
+    gzip_coyote = benchmark("gzip_coyote", "cyt_top_gzip_hbm_107", "build_io_app_sw", ["-o", "gzip", "-h", "-f"], tags=["gzip", "Coyote"])
+    gzip_vfpio = benchmark("gzip_vfpio", "cyt_top_gzip_io_107", "build_io_app_sw", ["-o", "gzip", "-i", "-h", "-f"], tags=["gzip", "vFPIO"])
 
     # # input: 30720 B, output: 320 B
     # hls4ml_coyote = benchmark("matmul_coyote", "cyt_top_aes_io_104", "build_io_app_sw", ["-o", "aes", "-i", "-h"])
@@ -929,35 +964,35 @@ def main():
     rdma_aes_host = benchmark("rdma_aes_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "aes"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["aes", "rdma_host"])
     rdma_sha256_host = benchmark("rdma_sha256_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw",  
                                 ["-w", "1", "--repst", "1", "-o", "sha256"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha256", "rdma_host"])
     rdma_md5_host = benchmark("rdma_md5_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "md5"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["md5", "rdma_host"])
     rdma_nw_host = benchmark("rdma_nw_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "nw"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["nw", "rdma_host"])
     rdma_matmul_host = benchmark("rdma_matmul_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "mat"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["mat", "rdma_host"])
     rdma_sha3_host = benchmark("rdma_sha3_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "sha3"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha3", "rdma_host"])
     rdma_rng_host = benchmark("rdma_rng_host", "cyt_top_rdma_bram_strm_112", "build_rdma_rng_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "rng"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["rng", "rdma_host"])
     rdma_gzip_host = benchmark("rdma_gzip_host", "cyt_top_rdma_u280_new_1215", "build_rdma_host_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "gzip"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["gzip", "rdma_host"])
 
 
     # CLARA -> 
@@ -973,74 +1008,74 @@ def main():
     rdma_aes_coyote = benchmark("rdma_aes_coyote", "cyt_top_rdma_aes_u280_strm_1217", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "aes"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["aes", "rdma_coyote"])
     rdma_aes_vfpio = benchmark("rdma_aes_vfpio", "cyt_top_rdma_aes_u280_vfpio_1231", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "aes", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["aes", "rdma_vfpio"])
 
     rdma_sha256_coyote = benchmark("rdma_sha256_coyote", "cyt_top_rdma_sha256_u280_strm_1218", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "sha256"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha256", "rdma_coyote"])
     rdma_sha256_vfpio = benchmark("rdma_sha256_vfpio", "cyt_top_rdma_sha256_io_104", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "sha256", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha256", "rdma_vfpio"])
 
     rdma_md5_coyote = benchmark("rdma_md5_coyote", "cyt_top_rdma_md5_u280_strm_1218", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "md5"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["md5", "rdma_coyote"])
     rdma_md5_vfpio = benchmark("rdma_md5_vfpio", "cyt_top_rdma_md5_io_104", "build_rdma_app_sw",
                                ["-w", "1", "--repst", "1", "-o", "md5"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["md5", "rdma_vfpio"])
 
     rdma_nw_coyote = benchmark("rdma_nw_coyote", "cyt_top_rdma_nw_strm_109", "build_rdma_app_sw",
                                 ["-w", "1", "--repst", "1", "-o", "nw"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2)
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2, tags=["nw", "rdma_coyote"])
     rdma_nw_vfpio = benchmark("rdma_nw_vfpio", "cyt_top_rdma_nw_io_109", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "nw", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2)
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], repeat = 2, tags=["nw", "rdma_vfpio"])
 
     rdma_matmul_coyote = benchmark("rdma_matmul_coyote", "cyt_top_rdma_matmul_strm_109", "build_rdma_app_sw",
                                 ["-w", "1", "--repst", "1", "-o", "mat"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["matmul", "rdma_coyote"])
     rdma_matmul_vfpio = benchmark("rdma_matmul_vfpio", "cyt_top_rdma_matmul_io_109", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "mat", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["matmul", "rdma_vfpio"])
 
     rdma_sha3_coyote = benchmark("rdma_sha3_coyote", "cyt_top_rdma_keccak_strm_109", "build_rdma_app_sw",
                                 ["-w", "1", "--repst", "1", "-o", "sha3"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha3", "rdma_coyote"])
     rdma_sha3_vfpio = benchmark("rdma_sha3_vfpio", "cyt_top_rdma_keccak_io_110", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "sha3", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["sha3", "rdma_vfpio"])
 
     rdma_rng_coyote = benchmark("rdma_rng_coyote", "cyt_top_rdma_rng_strm_116", "build_rdma_app_sw",
                                 ["-w", "1", "--repst", "1", "-o", "rng"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["rng", "rdma_coyote"])
     rdma_rng_vfpio = benchmark("rdma_rng_vfpio", "cyt_top_rdma_rng_io_116", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "rng", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["rng", "rdma_vfpio"])
 
     rdma_gzip_coyote = benchmark("rdma_gzip_coyote", "cyt_top_rdma_gzip_strm_109", "build_rdma_app_sw",
                                 ["-w", "1", "--repst", "1", "-o", "gzip"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["gzip", "rdma_coyote"])
     rdma_gzip_vfpio = benchmark("rdma_gzip_vfpio", "cyt_top_rdma_gzip_io_109", "build_rdma_app_sw", 
                                 ["-w", "1", "--repst", "1", "-o", "gzip", "-i"],
                                 "build_rdma_app_sw", ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip", "-i"],
-                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"])
+                                prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"], prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"], tags=["gzip", "rdma_vfpio"])
 
 
 
@@ -1066,27 +1101,28 @@ def main():
 
     # sudo ./main -r 100 -s 16384 -e 16384 -p 2
     sched_perf_host_coyote_cycle = benchmark("sched_perf_host_coyote_cycle", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
-                                ["-r", "100", "-s", "16384", "-e", "16384"], repeat=1)
+                                ["-r", "100", "-s", "16384", "-e", "16384"], repeat=1, tags=["RR"])
     sched_perf_host_vfpio_cycle = benchmark("sched_perf_host_vfpio_cycle", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
-                                ["-r", "100", "-s", "16384", "-e", "16384", "-p", "2"], repeat=1)
+                                ["-r", "100", "-s", "16384", "-e", "16384", "-p", "2"], repeat=1, tags=["vFPIO"])
 
     # sudo ./main -r 100 -s 16384 -e 16384 -p 2
     sched_perf_host_coyote_cntx = benchmark("sched_perf_host_coyote_cntx", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
-                                ["-r", "100"], repeat=1, app_list = ["1024", "2048", "4096", "16384", "32768"])
+                                ["-r", "100"], repeat=1, app_list = ["1024", "2048", "4096", "8192", "16384", "32768"], tags=["Coyote"])
     sched_perf_host_vfpio_cntx = benchmark("sched_perf_host_vfpio_cntx", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
-                                ["-r", "100", "-p", "2"], repeat=1, app_list = ["1024", "2048", "4096", "16384", "32768"])
+                                ["-r", "100", "-p", "2"], repeat=1, app_list = ["1024", "2048", "4096", "8192", "16384", "32768"], tags=["vFPIO"])
 
     # cyt_top_perf_fpga_u280_829_coyote, cyt_top_perf_fpga_u280_829_arbiter
     # sudo ./main -r 100 -s 1024 -e 262144
-    sched_perf_host_coyote = benchmark("sched_perf_host_coyote", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw", 
-                                ["-r", "100"], repeat=1, app_list = ["1024", "1024", "2048", "4096", "16384", "32768", "65536", "131072", "262144"])
+    sched_perf_host_coyote = benchmark("sched_perf_host_coyote", "cyt_top_perf_host_strm_0520", "build_perf_host_arbiter_sw", 
+                                ["-r", "100"], repeat=1, app_list = ["1024", "1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072", "262144"], tags=["Coyote"])
     sched_perf_host_vfpio = benchmark("sched_perf_host_vfpio", "cyt_top_perf_host_io_ila_0515", "build_perf_host_arbiter_sw",
-                                ["-r", "100", "-p", "2"], repeat=1, app_list = ["1024", "1024", "2048", "4096", "16384", "32768", "65536", "131072", "262144"])
+                                ["-r", "100"], repeat=1, app_list = ["1024", "1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072", "262144"], tags=["vFPIO"])
+                                # ["-r", "100", "-p", "2"], repeat=1, app_list = ["1024", "1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072", "262144"])
 
     # cyt_top_perf_fpga_u280_829_coyote, cyt_top_perf_fpga_u280_829_arbiter
     # sudo ./main -r 100 -s 1024 -e 1024
-    sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0513", "build_perf_fpga_sw", [], repeat=1)
-    sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", [], repeat=1)
+    sched_perf_fpga_coyote = benchmark("sched_perf_fpga_coyote", "cyt_top_perf_fpga_strm_0513", "build_perf_fpga_sw", [], repeat=1, tags=["Coyote"])
+    sched_perf_fpga_vfpio = benchmark("sched_perf_fpga_vfpio", "cyt_top_perf_fpga_io_0511", "build_perf_fpga_sw", [], repeat=1, tags=["vFPIO"])
     
 
     simple_list = {
@@ -1096,13 +1132,13 @@ def main():
     # aes result is wrong
     Exp_6_1_host_list = {
         "aes_host": aes_host,
-        "sha256_host": sha256_host,
-        "md5_host": md5_host,
-        "nw_host": nw_host,
-        "matmul_host": matmul_host,
-        "sha3_host": sha3_host,
-        "rng_host": rng_host,
-        "gzip_host": gzip_host,
+        # "sha256_host": sha256_host,
+        # "md5_host": md5_host,
+        # "nw_host": nw_host,
+        # "matmul_host": matmul_host,
+        # "sha3_host": sha3_host,
+        # "rng_host": rng_host,
+        # "gzip_host": gzip_host,
     }
 
     Exp_6_1_coyote_list = {
@@ -1205,19 +1241,14 @@ def main():
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_1_output(output_result)
 
-        # for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
-        #     # print(bench_object.name)
-        #     print("--------------------------------------------")
-        #     output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-        #     parse_6_4_2_fpga_output(output_result)
-
     elif exp == "Exp_6_1_host_list":
         print("Running Exp_6_1_host_list example.")
         for bench_name, bench_object in Exp_6_1_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_1_coyote_list":
         print("Running Exp_6_1_coyote_list example.")
@@ -1225,14 +1256,17 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_1_vfpio_list":
         print("Running Exp_6_1_vfpio_list example.")
         for bench_name, bench_object in Exp_6_1_vfpio_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_1_host_rdma_list":
         for bench_name, bench_object in Exp_6_1_host_rdma_list.items():
@@ -1268,30 +1302,39 @@ def main():
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_3_vio_output(output_result)
+
     elif exp == "Exp_6_4_1_cycle_list":
         for bench_name, bench_object in Exp_6_4_1_cycle_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_4_1_output(output_result)
+            output_data = parse_6_4_1_output(output_result)
+            write_6_4_1_to_file("results_6_4_cycle.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_4_1_cntx_list":
         for bench_name, bench_object in Exp_6_4_1_cntx_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_cntx_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_4_1_2_output(output_result)
+            output_data = parse_6_4_1_2_output(output_result)
+            write_6_4_1_2_to_file("results_6_4_cntx.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_4_2_host_list":
         for bench_name, bench_object in Exp_6_4_2_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_cntx_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_4_2_host_output(output_result)
+            output_data = parse_6_4_2_host_output(output_result)
+            write_6_4_2_to_file("results_6_4_host.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_4_2_fpga_list":
         for bench_name, bench_object in Exp_6_4_2_fpga_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_4_2_fpga_output(output_result)
+            output_data = parse_6_4_2_fpga_output(output_result)
+            write_6_4_2_to_file("results_6_4_fpga.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_5_resource_util":
         print("--------------------------------------------")
         extract_util("util_coyote.csv", "util_vfpio.csv")

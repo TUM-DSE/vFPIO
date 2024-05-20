@@ -12,7 +12,7 @@ FONTSIZE = 14
 sns.set(font_scale=1.6)
 sns.set_style("ticks")
 
-data1 = pandas.read_csv("performance_isolation_2.csv")
+data1 = pandas.read_csv("performance_isolation.csv")
 data2 = pandas.read_csv("context_switch.csv")
 print(data1.head())
 # print(data["app"][0])
