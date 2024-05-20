@@ -1,34 +1,23 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import csv
-import json
-import time
-import copy
-import logging
-import pathlib
 import argparse
-import subprocess
-from pathlib import Path
-from threading import Thread, Timer
-from datetime import datetime
-from typing import Dict, Iterator, List, Optional, Text, DefaultDict, Any, IO, Callable
-# from matplotlib import pyplot as plt
+
 
 def average(lst):
     return round(sum(lst) / len(lst), 2)
 
+
 def process_6_1(input_filename, output_filename):
     dic = {}
     dic_rdma = {}
-    with open(input_filename, 'r') as file:
-        csv_reader = csv.reader(file, delimiter=',')
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
         for row in csv_reader:
             if "rdma" not in row[1]:
                 key = row[0]
                 if key not in dic:
-                    dic[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], "")
+                    dic[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
                     dic[key][row[1]] = list(map(float, row[2:]))
                 else:
                     dic[key][row[1]] += list(map(float, row[2:]))
@@ -36,13 +25,13 @@ def process_6_1(input_filename, output_filename):
                 tag = row[1].split("_")[1]
                 key = " " + row[0] + " "
                 if key not in dic_rdma:
-                    dic_rdma[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], "")
+                    dic_rdma[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
                     dic_rdma[key][tag] = list(map(float, row[2:]))
                 else:
                     dic_rdma[key][tag] += list(map(float, row[2:]))
     # print(dic)
     # print(dic_rdma)
-    with open(output_filename, 'w') as file:
+    with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
         csv_writer.writerow(["app", "throughput", "platform"])
 
@@ -61,9 +50,9 @@ def process_6_1(input_filename, output_filename):
 
 def process_6_4_cycle(input_filename, output_filename):
     dic = {}
-    with open(input_filename, 'r') as file:
-        csv_reader = csv.reader(file, delimiter=',')
-        for row in csv_reader:   
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
             key = row[0]
             if not row:
                 continue
@@ -74,7 +63,7 @@ def process_6_4_cycle(input_filename, output_filename):
 
     print(dic)
 
-    with open(output_filename, 'w') as file:
+    with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
         csv_writer.writerow(["priority", "cycle"])
         for key in dic:
@@ -85,8 +74,8 @@ def process_6_4_cycle(input_filename, output_filename):
 
 def process_6_4_cntx(input_filename, output_filename):
     dic = {}
-    with open(input_filename, 'r') as file:
-        csv_reader = csv.reader(file, delimiter=',')
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
         for row in csv_reader:
             if not row:
                 continue
@@ -98,7 +87,7 @@ def process_6_4_cntx(input_filename, output_filename):
 
     # print(dic)
 
-    with open(output_filename, 'w') as file:
+    with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
         csv_writer.writerow(["size", "count", "platform"])
         for key in dic:
@@ -109,9 +98,9 @@ def process_6_4_cntx(input_filename, output_filename):
 
 def process_6_4(input_filename, output_filename):
     dic = {}
-    with open(input_filename, 'r') as file:
-        csv_reader = csv.reader(file, delimiter=',')
-        for row in csv_reader:   
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
             # print(row)
             if not row:
                 continue
@@ -123,7 +112,7 @@ def process_6_4(input_filename, output_filename):
 
     # print(dic)
 
-    with open(output_filename, 'w') as file:
+    with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
         csv_writer.writerow(["Size[KiB]", "Cycle", "Platform"])
         for key in dic:
@@ -135,12 +124,15 @@ def process_6_4(input_filename, output_filename):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--reprogram", "-r", action="store_true",
-                    help="reprogram fpga before running experiments")
-    parser.add_argument("--experiments", "-e", type=str, default="simple", help="select the experiments to run")
+    parser.add_argument(
+        "--experiments",
+        "-e",
+        type=str,
+        default="simple",
+        help="select the experiments to run",
+    )
     args = parser.parse_args()
 
-    reprogram = args.reprogram
     exp = args.experiments
 
     if exp == "6_1":
@@ -180,9 +172,10 @@ def main():
         print("No evaluation selected.")
 
     print("--------------------------------------------")
-    
+
     # parse_output("LICENSE.md")
     print("Finished")
+
 
 if __name__ == "__main__":
 
