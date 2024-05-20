@@ -117,7 +117,11 @@ module cnfg_slave_avx #(
     output logic                restart_rd,
     output logic                restart_wr,
     output logic                decouple,
-    output logic                pf_irq
+    output logic                pf_irq,
+    output logic [3:0]          prio,
+
+    // IO Control
+    output logic [7:0]          io_ctrl
 );
 
 // -- Decl -------------------------------------------------------------------------------
@@ -174,6 +178,7 @@ logic irq_pending;
 logic rd_sent_host, rd_sent_card, rd_sent_sync;
 logic wr_sent_host, wr_sent_card, wr_sent_sync;
 
+logic [31:0] req_count_debug;
 logic [31:0] rd_queue_used;
 logic [31:0] wr_queue_used;
 
@@ -401,6 +406,8 @@ localparam integer TCP_1_OPEN_CON_STS_REG                   = 42;
 localparam integer TCP_1_OPEN_PORT_STS_REG                  = 43;
 localparam integer TCP_1_CLOSE_CON_REG                      = 44;
 
+// 50 (RO) : Context switch mmaping
+localparam integer CNTX_STAT_REG                            = 50;
 // 51 (RO) : Cycles for transaction 
 localparam integer REQ_COUNT_REG                            = 51;
 // 52 (RO) : Cycles for transaction 
