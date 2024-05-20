@@ -8,6 +8,12 @@ def average(lst):
     return round(sum(lst) / len(lst), 2)
 
 
+def percentage(a, b):
+    if a == 0:
+        return 0
+    return round((a - b) / a * 100, 1)
+
+
 def process_6_1(input_filename, output_filename):
     dic = {}
     dic_rdma = {}
@@ -44,6 +50,38 @@ def process_6_1(input_filename, output_filename):
             for platform in dic_rdma[key]:
                 out = [key, average(dic_rdma[key][platform]), platform]
                 csv_writer.writerow(out)
+
+    print("write finished")
+
+
+def process_6_2(input_filename, output_filename):
+    res = []
+    app_list = ["host", "aes", "sha256", "md5", "nw", "matmul", "sha3", "rng", "gzip"]
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            if not row:
+                continue
+            words = row[0].split()
+            # print(words)
+            if words[0] == "Total":
+                res.append([words[5], words[6]])
+    print(res)
+
+    with open(output_filename, "w") as file:
+        csv_writer = csv.writer(file)
+        for i, app in enumerate(app_list):
+            out = [
+                app,
+                res[2 * i][0],
+                res[2 * i + 1][0],
+                percentage(float(res[2 * i][0]), float(res[2 * i + 1][0])),
+                res[2 * i][1],
+                res[2 * i + 1][1],
+                percentage(float(res[2 * i][1]), float(res[2 * i + 1][1])),
+            ]
+
+            csv_writer.writerow(out)
 
     print("write finished")
 
@@ -140,6 +178,13 @@ def main():
         output_file = "e2e.csv"
         print("Running 6_1 example.")
         process_6_1(input_file, output_file)
+        print("exp result path: " + output_file)
+
+    elif exp == "6_2":
+        input_file = "results_6_2.csv"
+        output_file = "complexity.csv"
+        print("Running 6_2 example.")
+        process_6_2(input_file, output_file)
         print("exp result path: " + output_file)
 
     elif exp == "6_4_cycle":
