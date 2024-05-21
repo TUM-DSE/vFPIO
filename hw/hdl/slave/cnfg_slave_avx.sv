@@ -215,9 +215,11 @@ logic [3:0] prio;
 logic [63:0] time_counter;
 logic count_enabled;
 logic transfer_start;
+logic [31:0] cntx_data;
 assign prio = slv_reg[PRIO_STAT_REG][3:0];
 assign req_count_debug = slv_reg[REQ_COUNT_REG][31:0];
 assign transfer_start = slv_reg[CTRL_REG][CTRL_START_RD] || slv_reg[CTRL_REG][CTRL_START_WR];
+assign cntx_data = slv_reg[CNTX_STAT_REG][31:0];
 
 `ifdef EN_WB
 metaIntf #(.STYPE(wback_t)) wback [N_WBS] ();
