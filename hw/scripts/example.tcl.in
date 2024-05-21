@@ -230,6 +230,13 @@ switch $cfg(example) {
         }
     }
 
+    "io_switch_ndp" {
+        puts "IO switch example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/io_switch_ndp"  
+    }
+
     default {
         puts "No example chosen"
     }
