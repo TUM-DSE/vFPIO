@@ -308,9 +308,10 @@ def reprogram_fpga(bit_path):
     print(cmd)
     logging.info(cmd)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     except:
         print("Something went wrong during FPGA programming. Please check log.")
+        result.kill()
         exit()
 
     # print("stdout:", result.stdout)
@@ -337,9 +338,10 @@ def reprogram_fpga_remote(bit_path):
     print(cmd)
     logging.info(cmd)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     except:
         print("Something went wrong during FPGA remote programming. Please check log.")
+        result.kill()
         exit()
 
     # print("stdout:", result.stdout)
@@ -1054,6 +1056,14 @@ def main():
         repeat=2,
         tags=["aes", "Coyote"],
     )
+    aes_host_coyote = benchmark(
+        "aes_host_coyote",
+        "cyt_top_aes_u280_strm_1206",
+        "build_io_app_sw",
+        ["-o", "aes", "-h"],
+        repeat=2,
+        tags=["aes", "Coyote"],
+    )
     aes_vfpio = benchmark(
         "aes_vfpio",
         "cyt_top_aes_io_104",
@@ -1078,6 +1088,14 @@ def main():
         "build_io_app_sw",
         ["-o", "sha256", "-h", "-f"],
         repeat=2,
+        tags=["sha256", "Coyote"],
+    )
+    sha256_host_coyote = benchmark(
+        "sha256_host_coyote",
+        "cyt_top_sha256_u280_strm_1206",
+        "build_io_app_sw",
+        ["-o", "sha256", "-h"],
+        repeat=1,
         tags=["sha256", "Coyote"],
     )
     sha256_vfpio = benchmark(
@@ -1105,6 +1123,14 @@ def main():
         ["-o", "md5", "-h", "-f"],
         tags=["md5", "Coyote"],
     )
+    md5_host_coyote = benchmark(
+        "md5_host_coyote",
+        "cyt_top_md5_u280_strm_1206",
+        "build_io_app_sw",
+        ["-o", "md5", "-h"],
+        repeat=1,
+        tags=["md5", "Coyote"],
+    )
     md5_vfpio = benchmark(
         "md5_vfpio",
         "cyt_top_md5_io_106",
@@ -1127,6 +1153,13 @@ def main():
         "cyt_top_nw_hbm_104",
         "build_io_app_sw",
         ["-o", "nw", "-h", "-f"],
+        tags=["nw", "Coyote"],
+    )
+    nw_host_coyote = benchmark(
+        "nw_host_coyote",
+        "cyt_top_nw_u280_strm_1108",
+        "build_io_app_sw",
+        ["-o", "nw", "-h"],
         tags=["nw", "Coyote"],
     )
     nw_vfpio = benchmark(
@@ -1152,6 +1185,13 @@ def main():
         ["-o", "mat", "-h", "-f"],
         tags=["matmul", "Coyote"],
     )
+    matmul_host_coyote = benchmark(
+        "matmul_host_coyote",
+        "cyt_top_matmul_u280_dram_1124",
+        "build_io_app_sw",
+        ["-o", "mat", "-h"],
+        tags=["matmul", "Coyote"],
+    )
     matmul_vfpio = benchmark(
         "matmul_vfpio",
         "cyt_top_matmul_io_106",
@@ -1173,6 +1213,13 @@ def main():
         "cyt_top_keccak_hbm_104",
         "build_io_app_sw",
         ["-o", "sha3", "-h", "-f"],
+        tags=["sha3", "Coyote"],
+    )
+    sha3_host_coyote = benchmark(
+        "sha3_host_coyote",
+        "cyt_top_keccak_u280_dram_1124",
+        "build_io_app_sw",
+        ["-o", "sha3", "-h"],
         tags=["sha3", "Coyote"],
     )
     sha3_vfpio = benchmark(
@@ -1198,6 +1245,13 @@ def main():
         ["-o", "rng", "-h", "-f"],
         tags=["rng", "Coyote"],
     )
+    rng_host_coyote = benchmark(
+        "rng_host_coyote",
+        "cyt_top_rng_u280_strm_1117",
+        "build_io_app_sw",
+        ["-o", "rng", "-h"],
+        tags=["rng", "Coyote"],
+    )
     rng_vfpio = benchmark(
         "rng_vfpio",
         "cyt_top_rng_io_107",
@@ -1219,6 +1273,13 @@ def main():
         "cyt_top_gzip_hbm_107",
         "build_io_app_sw",
         ["-o", "gzip", "-h", "-f"],
+        tags=["gzip", "Coyote"],
+    )
+    gzip_host_coyote = benchmark(
+        "gzip_host_coyote",
+        "cyt_top_gzip_u280_strm_1116",
+        "build_io_app_sw",
+        ["-o", "gzip", "-h"],
         tags=["gzip", "Coyote"],
     )
     gzip_vfpio = benchmark(
@@ -1752,15 +1813,26 @@ def main():
         "rdma_gzip_vfpio": rdma_gzip_vfpio,
     }
 
+    Exp_6_3_host_coyote_list = {
+        "aes_host_coyote": aes_host_coyote,
+        "sha256_host_coyote": sha256_host_coyote,
+        "md5_host_coyote": md5_host_coyote,
+        "nw_host_coyote": nw_host_coyote,
+        "matmul_host_coyote": matmul_host_coyote,
+        "sha3_host_coyote": sha3_host_coyote,
+        "rng_host_coyote": rng_host_coyote,
+        "gzip_host_coyote": gzip_host_coyote,
+    }
+
     Exp_6_3_host_vfpio_list = {
-        # "aes_host_vfpio": aes_host_vfpio,
-        # "sha256_host_vfpio": sha256_host_vfpio,
-        # "md5_host_vfpio": md5_host_vfpio,
-        # "nw_host_vfpio": nw_host_vfpio,
-        # "matmul_host_vfpio": matmul_host_vfpio,
-        # "sha3_host_vfpio": sha3_host_vfpio,
+        "aes_host_vfpio": aes_host_vfpio,
+        "sha256_host_vfpio": sha256_host_vfpio,
+        "md5_host_vfpio": md5_host_vfpio,
+        "nw_host_vfpio": nw_host_vfpio,
+        "matmul_host_vfpio": matmul_host_vfpio,
+        "sha3_host_vfpio": sha3_host_vfpio,
         "rng_host_vfpio": rng_host_vfpio,
-        # "gzip_host_vfpio": gzip_host_vfpio,
+        "gzip_host_vfpio": gzip_host_vfpio,
     }
 
     Exp_6_3_host_list = {
@@ -1854,6 +1926,14 @@ def main():
             print("--------------------------------------------")
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_1_output(output_result)
+
+    elif exp == "Exp_6_3_host_coyote_list":
+        for bench_name, bench_object in Exp_6_3_host_coyote_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            output_data = parse_6_3_output(output_result)
+            write_to_file("results_6_3.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_3_host_vfpio_list":
         for bench_name, bench_object in Exp_6_3_host_vfpio_list.items():
