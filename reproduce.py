@@ -137,6 +137,10 @@ def parse_6_1_output(filename):
     return res
 
 
+def parse_6_3_output(filename):
+    return parse_6_1_output(filename)
+
+
 def parse_6_3_pr_output(filename):
     res = []
     res_tmp = []
@@ -387,6 +391,27 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     with open(out_file, "w+") as f:
         for i in range(repeat):
             try:
+                if bench_name == "rng_host_vfpio":
+                    # somehow the rng host version requires running the fpga version twice first to be stable
+                    cmd_rng_fpga = cmd + ["-f"]
+                    subprocess.run(
+                        cmd_rng_fpga,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=os.environ,
+                        timeout=timeout,
+                        check=True,
+                    )
+                    
+                    subprocess.run(
+                        cmd_rng_fpga,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=os.environ,
+                        timeout=timeout,
+                        check=True,
+                    )
+
                 subprocess.run(
                     cmd,
                     stdout=f,
@@ -787,14 +812,18 @@ def extract_util(coyote_path, vfpio_path):
                 scheduler_entry[1] += float(line[3])
                 scheduler_entry[3] += float(line[7])
                 scheduler_entry[5] += float(line[8]) + float(line[9]) / 2
-            elif line[1] == "inst_user_wrapper_0":
-                vio_entry[1] += float(line[3])
-                vio_entry[3] += float(line[7])
-                vio_entry[5] += float(line[8]) + float(line[9]) / 2
-            elif line[1] == "inst_reg_direct":
-                vio_entry[1] -= float(line[3])
-                vio_entry[3] -= float(line[7])
-                vio_entry[5] -= float(line[8]) + float(line[9]) / 2
+            # elif line[1] == "inst_user_wrapper_0":
+            #     vio_entry[1] += float(line[3])
+            #     vio_entry[3] += float(line[7])
+            #     vio_entry[5] += float(line[8]) + float(line[9]) / 2
+            # elif line[1] == "inst_reg_direct":
+            #     vio_entry[1] -= float(line[3])
+            #     vio_entry[3] -= float(line[7])
+            #     vio_entry[5] -= float(line[8]) + float(line[9]) / 2
+            elif line[1] == "(inst_user_c0_0)":
+                vio_entry = ["Virtual IO"]
+                vio_entry = get_data(total, vio_entry, line)
+                # print(line)
 
     network_entry[2] = round(float(network_entry[1]) / total[1] * 100, 1)
     network_entry[4] = round(float(network_entry[3]) / total[3] * 100, 1)
@@ -808,9 +837,9 @@ def extract_util(coyote_path, vfpio_path):
     scheduler_entry[4] = round(float(scheduler_entry[3]) / total[3] * 100, 1)
     scheduler_entry[6] = round(float(scheduler_entry[5]) / total[5] * 100, 1)
 
-    vio_entry[2] = round(float(vio_entry[1]) / total[1] * 100, 1)
-    vio_entry[4] = round(float(vio_entry[3]) / total[3] * 100, 1)
-    vio_entry[6] = round(float(vio_entry[5]) / total[5] * 100, 1)
+    # vio_entry[2] = round(float(vio_entry[1]) / total[1] * 100, 1)
+    # vio_entry[4] = round(float(vio_entry[3]) / total[3] * 100, 1)
+    # vio_entry[6] = round(float(vio_entry[5]) / total[5] * 100, 1)
 
     result_table.append(network_entry)
     result_table.append(cdma_entry)
@@ -1033,6 +1062,14 @@ def main():
         repeat=2,
         tags=["aes", "vFPIO"],
     )
+    aes_host_vfpio = benchmark(
+        "aes_host_vfpio",
+        "cyt_top_aes_io_104",
+        "build_io_app_sw",
+        ["-o", "aes", "-i", "-h"],
+        repeat=2,
+        tags=["aes", "vFPIO"],
+    )
 
     #
     sha256_coyote = benchmark(
@@ -1051,6 +1088,14 @@ def main():
         repeat=2,
         tags=["sha256", "vFPIO"],
     )
+    sha256_host_vfpio = benchmark(
+        "sha256_host_vfpio",
+        "cyt_top_sha256_io_104",
+        "build_io_app_sw",
+        ["-o", "sha256", "-i", "-h"],
+        repeat=1,
+        tags=["sha256", "vFPIO"],
+    )
 
     #
     md5_coyote = benchmark(
@@ -1065,6 +1110,14 @@ def main():
         "cyt_top_md5_io_106",
         "build_io_app_sw",
         ["-o", "md5", "-i", "-h", "-f"],
+        tags=["md5", "vFPIO"],
+    )
+    md5_host_vfpio = benchmark(
+        "md5_host_vfpio",
+        "cyt_top_md5_io_106",
+        "build_io_app_sw",
+        ["-o", "md5", "-i", "-h"],
+        repeat=1,
         tags=["md5", "vFPIO"],
     )
 
@@ -1083,6 +1136,13 @@ def main():
         ["-o", "nw", "-i", "-h", "-f"],
         tags=["nw", "vFPIO"],
     )
+    nw_host_vfpio = benchmark(
+        "nw_host_vfpio",
+        "cyt_top_nw_io_106",
+        "build_io_app_sw",
+        ["-o", "nw", "-i", "-h"],
+        tags=["nw", "vFPIO"],
+    )
 
     # input: 65536 B, output: 32768 B
     matmul_coyote = benchmark(
@@ -1097,6 +1157,13 @@ def main():
         "cyt_top_matmul_io_106",
         "build_io_app_sw",
         ["-o", "mat", "-i", "-h", "-f"],
+        tags=["matmul", "vFPIO"],
+    )
+    matmul_host_vfpio = benchmark(
+        "matmul_host_vfpio",
+        "cyt_top_matmul_io_106",
+        "build_io_app_sw",
+        ["-o", "mat", "-i", "-h"],
         tags=["matmul", "vFPIO"],
     )
 
@@ -1115,6 +1182,13 @@ def main():
         ["-o", "sha3", "-i", "-h", "-f"],
         tags=["sha3", "vFPIO"],
     )
+    sha3_host_vfpio = benchmark(
+        "sha3_host_vfpio",
+        "cyt_top_keccak_io_106",
+        "build_io_app_sw",
+        ["-o", "sha3", "-i", "-h"],
+        tags=["sha3", "vFPIO"],
+    )
 
     # input: 64 B, output: 4095 B
     rng_coyote = benchmark(
@@ -1131,6 +1205,13 @@ def main():
         ["-o", "rng", "-i", "-h", "-f"],
         tags=["rng", "vFPIO"],
     )
+    rng_host_vfpio = benchmark(
+        "rng_host_vfpio",
+        "cyt_top_rng_io_107",
+        "build_io_app_sw",
+        ["-o", "rng", "-i", "-h"],
+        tags=["rng", "vFPIO"],
+    )
 
     # input: 512 B, output: 128 B
     gzip_coyote = benchmark(
@@ -1145,6 +1226,13 @@ def main():
         "cyt_top_gzip_io_107",
         "build_io_app_sw",
         ["-o", "gzip", "-i", "-h", "-f"],
+        tags=["gzip", "vFPIO"],
+    )
+    gzip_host_vfpio = benchmark(
+        "gzip_host_vfpio",
+        "cyt_top_gzip_io_107",
+        "build_io_app_sw",
+        ["-o", "gzip", "-i", "-h"],
         tags=["gzip", "vFPIO"],
     )
 
@@ -1664,6 +1752,17 @@ def main():
         "rdma_gzip_vfpio": rdma_gzip_vfpio,
     }
 
+    Exp_6_3_host_vfpio_list = {
+        # "aes_host_vfpio": aes_host_vfpio,
+        # "sha256_host_vfpio": sha256_host_vfpio,
+        # "md5_host_vfpio": md5_host_vfpio,
+        # "nw_host_vfpio": nw_host_vfpio,
+        # "matmul_host_vfpio": matmul_host_vfpio,
+        # "sha3_host_vfpio": sha3_host_vfpio,
+        "rng_host_vfpio": rng_host_vfpio,
+        # "gzip_host_vfpio": gzip_host_vfpio,
+    }
+
     Exp_6_3_host_list = {
         "pr_part1_host": pr_part1_host,
         "pr_part2_host": pr_part2_host,
@@ -1756,19 +1855,29 @@ def main():
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
             parse_6_1_output(output_result)
 
+    elif exp == "Exp_6_3_host_vfpio_list":
+        for bench_name, bench_object in Exp_6_3_host_vfpio_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_benchmark(exp_res_path, bench_object, reprogram)
+            output_data = parse_6_3_output(output_result)
+            write_to_file("results_6_3.csv", output_data, bench_object.tags)
+
     elif exp == "Exp_6_3_host_list":
         for bench_name, bench_object in Exp_6_3_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_pr_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_3_pr_output(output_result)
+            output_data = parse_6_3_pr_output(output_result)
+            write_to_file("results_6_3.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_3_hbm_list":
         for bench_name, bench_object in Exp_6_3_hbm_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_pr_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_3_pr_output(output_result)
+            output_data = parse_6_3_pr_output(output_result)
+            write_to_file("results_6_3.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_3_vfpio_list":
         for bench_name, bench_object in Exp_6_3_vfpio_list.items():

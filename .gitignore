@@ -47,3 +47,5 @@ synth/
 *.upgrade_log
 *.dcp
 *.d
+*.png
+*.pdf

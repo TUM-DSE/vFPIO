@@ -85,6 +85,35 @@ def process_6_2(input_filename, output_filename):
 
     print("write finished")
 
+def process_6_3(input_filename, input_filename_2, output_filename):
+    res = []
+    dic = {}
+    app_list = ["aes", "sha256", "md5", "nw", "matmul", "sha3", "rng", "gzip"]
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            if not row:
+                continue
+            app = row[0]
+            if app not in app_list:
+                continue
+            if app not in dic:
+                dic[app] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
+                dic[app][row[2]] = float(row[1])
+            else:
+                dic[app][row[2]] = float(row[1])
+
+    for app in app_list:
+        res.append([app, dic[app]["vFPIO"], round(dic[app]["vFPIO"] / dic[app]["Coyote"] * 100, 1)] )
+
+    
+    print(dic)
+
+    with open(output_filename, "w") as file:
+        csv_writer = csv.writer(file)
+        for row in res:
+            csv_writer.writerow(row)
+
 
 def process_6_4_cycle(input_filename, output_filename):
     dic = {}
@@ -185,6 +214,14 @@ def main():
         output_file = "complexity.csv"
         print("Running 6_2 example.")
         process_6_2(input_file, output_file)
+        print("exp result path: " + output_file)
+
+    elif exp == "6_3":
+        input_file = "e2e.csv"
+        input_file_2 = "e2e.csv"
+        output_file = "reconfig.csv"
+        print("Running 6_3 example.")
+        process_6_3(input_file, input_file_2, output_file)
         print("exp result path: " + output_file)
 
     elif exp == "6_4_cycle":
