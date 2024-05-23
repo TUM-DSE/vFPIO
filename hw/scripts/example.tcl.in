@@ -298,6 +298,13 @@ switch $cfg(example) {
         add_files "$hw_dir/hdl/operators/examples/rdma_regex/"
     }
 
+    "io_switch_ndp" {
+        puts "IO switch example."
+
+        # Add source files
+        add_files "$hw_dir/hdl/operators/examples/io_switch_ndp"  
+    }
+
     "service_aes" {
         puts "Coyote service (AES). Daemon example."
 

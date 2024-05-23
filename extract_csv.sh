@@ -1,6 +1,8 @@
 #!/bin/bash
 
-xilinx-shell ./run_vivado_project.sh "coyote"
+echo "extract $1"
 
-xilinx-shell ./run_vivado_project.sh "vfpio"
+xilinx-shell ./run_vivado_project.sh $1
+
+# xilinx-shell ./run_vivado_project.sh "vfpio"
 
