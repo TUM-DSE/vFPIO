@@ -329,6 +329,63 @@ switch $cfg(example) {
         }
     }
 
+    "caribou" {
+        puts "FPGA-serverless benchmark applications"
+
+        add_files "$hw_dir/hdl/operators/caribou/rtl"
+        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/caribou/constraints"
+
+        for {set i 0}  {$i < $cfg(n_config)} {incr i} {
+            for {set j 0}  {$j < $cfg(n_reg)} {incr j} {
+                set cmd "add_files -norecurse $hw_dir/hdl/operators/caribou/rtl/caribou_c$i\_$j.svh -of_objects [get_reconfig_modules design_user_wrapper_c$i\_$j]"
+                eval $cmd
+
+                set cmd "import_files $hw_dir/hdl/operators/caribou/rtl/c$i -of_objects [get_reconfig_modules design_user_wrapper_c$i\_$j]"
+                eval $cmd
+
+                # Substitute "_c0_1" in files by actual config and region names
+                set cmd "exec /usr/bin/bash -c \"cd $proj_dir/lynx.srcs/design_user_wrapper_c$i\_$j/imports/c$i  && sed -i 's/_c0_1/_c$i\_$j/g' * \""
+                puts "Execute command: $cmd"
+                eval $cmd
+            }
+
+            # Execute scripts, e.g. for IP generation
+            if {[file exists $hw_dir/hdl/operators/caribou/rtl/c$i.tcl]} {
+                puts "Execute script: c$i.tcl"
+                source $hw_dir/hdl/operators/caribou/rtl/c$i.tcl
+            }
+        }
+    }
+
+    "caribou3" {
+        puts "FPGA-serverless benchmark applications"
+
+        add_files "$hw_dir/hdl/operators/caribou3/rtl"
+        add_files -fileset constrs_1 -norecurse "$hw_dir/hdl/operators/caribou3/constraints"
+
+        for {set i 0}  {$i < $cfg(n_config)} {incr i} {
+            for {set j 0}  {$j < $cfg(n_reg)} {incr j} {
+                set cmd "add_files -norecurse $hw_dir/hdl/operators/caribou3/rtl/caribou3_c$i\_$j.svh -of_objects [get_reconfig_modules design_user_wrapper_c$i\_$j]"
+                eval $cmd
+
+                set cmd "import_files $hw_dir/hdl/operators/caribou3/rtl/c$i -of_objects [get_reconfig_modules design_user_wrapper_c$i\_$j]"
+                eval $cmd
+
+                # Substitute "_c0_1" in files by actual config and region names
+                set cmd "exec /usr/bin/bash -c \"cd $proj_dir/lynx.srcs/design_user_wrapper_c$i\_$j/imports/c$i  && sed -i 's/_c0_1/_c$i\_$j/g' * \""
+                puts "Execute command: $cmd"
+                eval $cmd
+            }
+
+            # Execute scripts, e.g. for IP generation
+            if {[file exists $hw_dir/hdl/operators/caribou3/rtl/c$i.tcl]} {
+                puts "Execute script: c$i.tcl"
+                source $hw_dir/hdl/operators/caribou3/rtl/c$i.tcl
+            }
+        }
+    }
+
+
     default {
         puts "No example chosen"
     }
