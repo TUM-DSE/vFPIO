@@ -9,7 +9,20 @@ git checkout vfpio
 
 ## For ATC evaluation testers
 
-Due its special hardware requirments we provide ssh access to our evaluation machines. Please contact the paper author email address to obtain ssh keys. The machines will have the correct hardware and also software installed to run the experiments. If you run into problems you can write an email or join channel #vfpio on freenode for live chat (https://webchat.freenode.net/) for further questions.
+Due its special hardware requirments we provide ssh access to our evaluation machines. Please contact the paper author email address to obtain ssh keys. The machines will have the correct hardware and also software installed to run the experiments. 
+
+
+Once your account has been established, you can use the following command to access our servers:
+
+```
+SSH_AUTH_SOCK= ssh -v -F /dev/null -i <path/to/privkey> -oProxyCommand="ssh tunnel@login.dos.cit.tum.de -i <path/to/privkey> -W %h:%p" <yourusername>@{server_name}.dos.cit.tum.de
+- replace the {server_name} with the server name
+- replace the <yourusername> with reviewer_username
+- replace the <path/to/privkey> with the path to your private key file
+```
+
+If you run into problems you can write an email or join channel #vfpio on freenode for live chat (https://webchat.freenode.net/) for further questions.
+
 
 ## Specs
 
@@ -135,6 +148,7 @@ sudo sysctl -w vm.nr_hugepages=1024
 Use the `reproduce.py` file to run the experiments. 
 
 ```
+# requires nix-shell vfpio.nix
 python3 reproduce.py -r -e Exp_6_1_host_list 
 python3 reproduce.py -r -e Exp_6_1_coyote_list 
 python3 reproduce.py -r -e Exp_6_1_vfpio_list 
@@ -142,9 +156,11 @@ python3 reproduce.py -r -e Exp_6_1_host_rdma_list
 python3 reproduce.py -r -e Exp_6_1_coyote_rdma_list 
 python3 reproduce.py -r -e Exp_6_1_vfpio_rdma_list 
 ```
-These will generate several csv files with recorded data. Run the following to create the figure for 6.1.
+
+These will generate several csv files with recorded data. The `write_csv.py` processes these data and output a csv file for plotting script. Run the following to create the figure (`e2e.png`) for 6.1 .
 
 ```
+python3 write_csv.py -e 6_1
 python3 plot_e2e.py
 ```
 #### 6.2 Programmability
@@ -154,18 +170,28 @@ Run the following command
 ```
 nix-shell vfpio.nix
 # in the project repo root 
-bash ./measure_complexity.sh
+bash ./measure_complexity.sh > results_6_2.csv
+python3 write_csv.py -e 6_2
 ```
-
+This will generate a file `complexity.csv` that has all the data needed to fill Table 5. 
 
 #### 6.3 Portability
 
 The data for the vFPIO throughput in Table 5 is taken from the previous experiments. Run the following command to generate the reconfiguration time data:
 ```
-python3 reproduce.py -r -e Exp_6_3_host_list 
-python3 reproduce.py -r -e Exp_6_3_hbm_list 
+python3 reproduce.py -r -e Exp_6_3_pr_host_list 
+python3 reproduce.py -r -e Exp_6_3_pr_hbm_list 
+python3 reproduce.py -r -e Exp_6_3_host_coyote_list
+python3 reproduce.py -r -e Exp_6_3_host_vfpio_list
 python3 reproduce.py -r -e Exp_6_3_vfpio_list
 ```
+
+Two files will be generated, `results_6_3_host.csv` and `results_6_3_pr.csv`. 
+
+```
+python3 write_csv.py -e 6_3
+```
+This commands generates `reconfig.csv` which has the data to fill Table 5.
 
 
 #### 6.4 Scheduler
@@ -178,6 +204,28 @@ python3 reproduce.py -r -e Exp_6_4_2_host_list
 python3 reproduce.py -r -e Exp_6_4_2_fpga_list 
 ```
 
+These commands will generate a set of csv files storing the experiments' results: `results_6_4_cntx.csv`, `results_6_4_cycle.csv`, `results_6_4_host.csv`, `results_6_4_fpga.csv`.
+
+To plot the Figure 6 and 7, 
+
+```
+python3 write_csv.py -e 6_4_cycle
+python3 write_csv.py -e 6_4_cntx
+
+python3 plot_iso.py
+```
+This will generate figure `perf_sched.png` (Figure 6).
+
+
+```
+python3 write_csv.py -e 6_4_host
+python3 write_csv.py -e 6_4_fpga
+
+python3 plot_overhead.py
+```
+
+The plotting command will generate figure `perf_overhead.png` (Figure 7).
+
 
 #### 6.5 Resource Overheads
 
@@ -189,7 +237,7 @@ For Coyote
 git checkout coyote-comp
 mkdir build_io_coyote_hw && cd build_io_coyote_hw
 cmake ../hw/ -DFDEV_NAME=u280 -DEXAMPLE=io_switch_ndp
-make && make compile
+make shell && make compile
 ```
 
 For vFPIO
@@ -199,12 +247,13 @@ For vFPIO
 git checkout vFPIO
 mkdir build_io_vfpio_hw && cd build_io_vfpio_hw
 cmake ../hw/ -DFDEV_NAME=u280 -DEXAMPLE=io_switch_ndp
-make && make compile
+make shell && make compile
 ```
-To extract the two resource utilization files, run the following scripts
+To extract the two resource utilization files, run the following scripts (make sure you are not in `xilinx-shell`)
 
 ```
-bash ./extract_csv.sh
+bash ./extract_csv.sh coyote
+bash ./extract_csv.sh vfpio
 ```
 
 This will generate two files: `util_coyote.csv` and `util_vfpio.csv`. Do not change the filenames, and run the next command to extract resource utilization of each component:
@@ -233,6 +282,31 @@ This will happen when the script does not exit normally. Type `reset` to solve t
 
 
 <!-- ### Require IP 'll_compress_2'
+
+
+Replace `username` with your username, such as `atcRev1`. Then to ssh into the server:
+
+```
+ssh username@amy.dos.cit.tum.de
+ssh username@clara.dos.cit.tum.de
+```
+
+
+```
+Host amy
+     HostName amy.dos.cit.tum.de
+     User username
+     ForwardAgent yes
+     ProxyJump tunnel
+     
+Host clara
+     HostName clara.dos.cit.tum.de
+     User username
+     ForwardAgent yes
+     ProxyJump tunnel
+```
+
+
  -->
 
 
