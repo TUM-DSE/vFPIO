@@ -21,6 +21,7 @@ namespace fpga {
 class ibvQpMap {
     /* Queue pairs */
     std::unordered_map<uint32_t, std::unique_ptr<ibvQpConn>> qpairs;
+    int sockfd;
 
 public:
 
@@ -35,6 +36,8 @@ public:
     // Queue pair exchange
     void exchangeQpMaster(uint16_t port);
     void exchangeQpSlave(const char *trgt_addr, uint16_t port);
+
+    void closeSock();
     
 };
 

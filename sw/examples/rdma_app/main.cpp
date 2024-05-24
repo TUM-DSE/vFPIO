@@ -458,6 +458,7 @@ int main(int argc, char *argv[])
     if (mstr) {
         iqp->sendAck(1);
         iqp->closeAck();
+        ictx.closeSock();
     } else {
         iqp->readAck();
         iqp->closeConnection();

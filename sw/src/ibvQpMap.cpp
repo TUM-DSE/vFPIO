@@ -44,17 +44,23 @@ ibvQpConn* ibvQpMap::getQpairConn(uint32_t qpid) {
     return nullptr;
 }
 
+void ibvQpMap::closeSock() {
+    DBG2("Master closing socket");
+    close(sockfd); 
+}
+
 void ibvQpMap::exchangeQpMaster(uint16_t port) {
     uint32_t recv_qpid;
     uint8_t ack;
     uint32_t n;
-    int sockfd = -1, connfd;
+    int connfd;
     struct sockaddr_in server;
     char recv_buf[recvBuffSize];
     memset(recv_buf, 0, recvBuffSize);
 
     DBG2("Master side exchange started ...");
 
+    sockfd = -1;
     sockfd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) 
         throw std::runtime_error("Could not create a socket");

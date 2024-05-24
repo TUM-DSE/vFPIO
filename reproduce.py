@@ -159,6 +159,27 @@ def parse_6_1_output(filename):
     return res
 
 
+def parse_6_1_rdma_output(filename):
+    res = []
+    with open(filename, "r", errors="replace") as file:
+        for line in file:
+            # print(line.rstrip())
+            if line != "":
+                line = line.split()
+                # special handling for the TCU abort test
+                if "throughput:" in line:
+                    print(line)
+                    res.append(float(line[3]))
+                    # line = line[6:]
+
+    print(res)
+    logging.info(res)
+    print("average: " + str(average(res)) + " MB/s")
+    logging.info("average: " + str(average(res)) + " MB/s")
+
+    return res
+
+
 def parse_6_3_output(filename):
     return parse_6_1_output(filename)
 
@@ -301,28 +322,6 @@ def parse_6_4_2_fpga_output(filename):
 
     print(res)
     logging.info(res)
-
-    return res
-
-
-def parse_rdma_output(filename):
-    # parsing rdma server output
-    res = []
-    with open(filename, "r", errors="replace") as file:
-        for line in file:
-            # print(line.rstrip())
-            if line != "":
-                line = line.split()
-                print(line)
-                # special handling for the TCU abort test
-                if "throughput:" in line:
-                    # print(line)
-                    res.append(float(line[3]))
-
-    print(res)
-    logging.info(res)
-    print("average: " + str(average(res)) + " MB/s")
-    logging.info("average: " + str(average(res)) + " MB/s")
 
     return res
 
@@ -586,7 +585,6 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
                 except:
                     server_process.kill()
 
-    parse_rdma_output(server_out_file)
     return server_out_file
 
 
@@ -885,102 +883,6 @@ def get_data_xlsx(total, entry, line):
         round(float(line[10]) / total[5] * 100, 1),
     ]
     return entry
-
-
-def extract_util_xlsx(coyote_path, vfpio_path):
-    result_table = []
-    header = ["", "LUTs", "[%]", "Flips-Flops", "[%]", "BRAM", "[%]"]
-    total = ["U280", 1303680, 100.0, 2607360, 100.0, 2016, 100.0]
-    result_table.append(header)
-    result_table.append(total)
-
-    with open(coyote_path, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        for i, line in enumerate(reader):
-            entry = []
-            if line == []:
-                continue
-            if line[0] == "cyt_top":
-                entry = ["Static (Coyote)"]
-                entry = get_data_xlsx(total, entry, line)
-                result_table.append(entry)
-
-    with open(vfpio_path, "r") as f:
-        reader = csv.reader(f, delimiter=",")
-        network_entry = ["Network(RDMA)", 0, 0, 0, 0, 0, 0]
-        cdma_entry = ["Local DMA (cdma)", 0, 0, 0, 0, 0, 0]
-        scheduler_entry = ["Scheduler", 0, 0, 0, 0, 0, 0]
-        vio_entry = ["Virtual IO", 0, 0, 0, 0, 0, 0]
-        for i, line in enumerate(reader):
-            entry = []
-            if line == []:
-                continue
-            if line[0] == "cyt_top":
-                entry = ["Static (vFPIO)"]
-                entry = get_data_xlsx(total, entry, line)
-                # entry = ["cyt_top", line[1], round(float(line[1])/total[1]*100, 1),
-                #          line[2], round(float(line[2])/total[3]*100, 1),
-                #          line[10], round(float(line[10])/total[5]*100, 1),
-                #          line[11], round(float(line[11])/total[7]*100, 1)]
-                result_table.append(entry)
-            elif (
-                line[0] == "inst_network_top_0 (network_top)"
-                or line[0] == "inst_network_top_1 (network_top__parameterized0)"
-            ):
-                network_entry[1] += float(line[1])
-                network_entry[3] += float(line[2])
-                network_entry[5] += float(line[10])
-            elif line[0] == "inst_int_hbm (design_hbm)":
-                entry = ["Memory"]
-                entry = get_data_xlsx(total, entry, line)
-                result_table.append(entry)
-            elif line[0] == "xdma_0 (design_static_xdma_0_0)":
-                entry = ["PCIe DMA (xDMA)"]
-                entry = get_data_xlsx(total, entry, line)
-                result_table.append(entry)
-            elif "cdma__parameterized" in line[0] or "cdma)" in line[0]:
-                cdma_entry[1] += float(line[1])
-                cdma_entry[3] += float(line[2])
-                cdma_entry[5] += float(line[10])
-            elif line[0] == "inst_tlb_top (tlb_top)":
-                entry = ["MMU"]
-                entry = get_data_xlsx(total, entry, line)
-                result_table.append(entry)
-            elif "tlb_arbiter)" in line[0] or "tlb_arbiter__parameterized" in line[0]:
-                scheduler_entry[1] += float(line[1])
-                scheduler_entry[3] += float(line[2])
-                scheduler_entry[5] += float(line[10])
-            elif line[0] == "inst_user_wrapper_0 (design_user_wrapper_0)":
-                vio_entry[1] += float(line[1])
-                vio_entry[3] += float(line[2])
-                vio_entry[5] += float(line[10])
-            elif "inst_reg_direct" in line[0]:
-                vio_entry[1] -= float(line[1])
-                vio_entry[3] -= float(line[2])
-                vio_entry[5] -= float(line[10])
-
-    network_entry[2] = round(float(network_entry[1]) / total[1] * 100, 1)
-    network_entry[4] = round(float(network_entry[3]) / total[3] * 100, 1)
-    network_entry[6] = round(float(network_entry[5]) / total[5] * 100, 1)
-
-    cdma_entry[2] = round(float(cdma_entry[1]) / total[1] * 100, 1)
-    cdma_entry[4] = round(float(cdma_entry[3]) / total[3] * 100, 1)
-    cdma_entry[6] = round(float(cdma_entry[5]) / total[5] * 100, 1)
-
-    scheduler_entry[2] = round(float(scheduler_entry[1]) / total[1] * 100, 1)
-    scheduler_entry[4] = round(float(scheduler_entry[3]) / total[3] * 100, 1)
-    scheduler_entry[6] = round(float(scheduler_entry[5]) / total[5] * 100, 1)
-
-    vio_entry[2] = round(float(vio_entry[1]) / total[1] * 100, 1)
-    vio_entry[4] = round(float(vio_entry[3]) / total[3] * 100, 1)
-    vio_entry[6] = round(float(vio_entry[5]) / total[5] * 100, 1)
-
-    result_table.append(network_entry)
-    result_table.append(cdma_entry)
-    result_table.append(scheduler_entry)
-    result_table.append(vio_entry)
-
-    print(result_table)
 
 
 def main():
@@ -1333,7 +1235,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["aes", "rdma_host"],
+        tags=[" aes ", "Host"],
     )
     rdma_sha256_host = benchmark(
         "rdma_sha256_host",
@@ -1344,7 +1246,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha256", "rdma_host"],
+        tags=[" sha256 ", "Host"],
     )
     rdma_md5_host = benchmark(
         "rdma_md5_host",
@@ -1355,7 +1257,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["md5", "rdma_host"],
+        tags=[" md5 ", "Host"],
     )
     rdma_nw_host = benchmark(
         "rdma_nw_host",
@@ -1366,7 +1268,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "nw"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["nw", "rdma_host"],
+        tags=[" nw ", "Host"],
     )
     rdma_matmul_host = benchmark(
         "rdma_matmul_host",
@@ -1377,7 +1279,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["mat", "rdma_host"],
+        tags=[" matmul ", "Host"],
     )
     rdma_sha3_host = benchmark(
         "rdma_sha3_host",
@@ -1388,7 +1290,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha3", "rdma_host"],
+        tags=[" sha3 ", "Host"],
     )
     rdma_rng_host = benchmark(
         "rdma_rng_host",
@@ -1399,7 +1301,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["rng", "rdma_host"],
+        tags=[" rng ", "Host"],
     )
     rdma_gzip_host = benchmark(
         "rdma_gzip_host",
@@ -1410,7 +1312,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["gzip", "rdma_host"],
+        tags=[" gzip ", "Host"],
     )
 
     # CLARA ->
@@ -1432,7 +1334,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["aes", "rdma_coyote"],
+        tags=[" aes ", "Coyote"],
     )
     rdma_aes_vfpio = benchmark(
         "rdma_aes_vfpio",
@@ -1443,7 +1345,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "aes", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["aes", "rdma_vfpio"],
+        tags=[" aes ", "vFPIO"],
     )
 
     rdma_sha256_coyote = benchmark(
@@ -1455,7 +1357,8 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha256", "rdma_coyote"],
+        repeat=1,
+        tags=[" sha256 ", "Coyote"],
     )
     rdma_sha256_vfpio = benchmark(
         "rdma_sha256_vfpio",
@@ -1466,7 +1369,8 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha256", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha256", "rdma_vfpio"],
+        repeat=1,
+        tags=[" sha256 ", "vFPIO"],
     )
 
     rdma_md5_coyote = benchmark(
@@ -1478,18 +1382,20 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["md5", "rdma_coyote"],
+        repeat=1,
+        tags=[" md5 ", "Coyote"],
     )
     rdma_md5_vfpio = benchmark(
         "rdma_md5_vfpio",
         "cyt_top_rdma_md5_io_104",
         "build_rdma_app_sw",
-        ["-w", "1", "--repst", "1", "-o", "md5"],
+        ["-w", "1", "--repst", "1", "-o", "md5", "-i"],
         "build_rdma_app_sw",
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "md5", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["md5", "rdma_vfpio"],
+        repeat=1,
+        tags=[" md5 ", "vFPIO"],
     )
 
     rdma_nw_coyote = benchmark(
@@ -1502,7 +1408,7 @@ def main():
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
         repeat=2,
-        tags=["nw", "rdma_coyote"],
+        tags=[" nw ", "Coyote"],
     )
     rdma_nw_vfpio = benchmark(
         "rdma_nw_vfpio",
@@ -1514,7 +1420,7 @@ def main():
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
         repeat=2,
-        tags=["nw", "rdma_vfpio"],
+        tags=[" nw ", "vFPIO"],
     )
 
     rdma_matmul_coyote = benchmark(
@@ -1526,7 +1432,8 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["matmul", "rdma_coyote"],
+        repeat=2,
+        tags=[" matmul ", "Coyote"],
     )
     rdma_matmul_vfpio = benchmark(
         "rdma_matmul_vfpio",
@@ -1537,7 +1444,8 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "mat", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["matmul", "rdma_vfpio"],
+        repeat=2,
+        tags=[" matmul ", "vFPIO"],
     )
 
     rdma_sha3_coyote = benchmark(
@@ -1549,7 +1457,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha3", "rdma_coyote"],
+        tags=[" sha3 ", "Coyote"],
     )
     rdma_sha3_vfpio = benchmark(
         "rdma_sha3_vfpio",
@@ -1560,7 +1468,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "sha3", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["sha3", "rdma_vfpio"],
+        tags=[" sha3 ", "vFPIO"],
     )
 
     rdma_rng_coyote = benchmark(
@@ -1572,7 +1480,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["rng", "rdma_coyote"],
+        tags=[" rng ", "Coyote"],
     )
     rdma_rng_vfpio = benchmark(
         "rdma_rng_vfpio",
@@ -1583,7 +1491,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["rng", "rdma_vfpio"],
+        tags=[" rng ", "vFPIO"],
     )
 
     rdma_gzip_coyote = benchmark(
@@ -1595,7 +1503,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["gzip", "rdma_coyote"],
+        tags=[" gzip ", "Coyote"],
     )
     rdma_gzip_vfpio = benchmark(
         "rdma_gzip_vfpio",
@@ -1606,7 +1514,7 @@ def main():
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "gzip", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
-        tags=["gzip", "rdma_vfpio"],
+        tags=[" gzip ", "vFPIO"],
     )
 
     # Partial reconfiguration
@@ -1817,25 +1725,25 @@ def main():
     }
 
     Exp_6_1_coyote_rdma_list = {
-        # "rdma_aes_coyote": rdma_aes_coyote,
-        # "rdma_sha256_coyote": rdma_sha256_coyote,
-        # "rdma_md5_coyote": rdma_md5_coyote,
+        "rdma_aes_coyote": rdma_aes_coyote,
+        "rdma_sha256_coyote": rdma_sha256_coyote,
+        "rdma_md5_coyote": rdma_md5_coyote,
         "rdma_nw_coyote": rdma_nw_coyote,
         "rdma_matmul_coyote": rdma_matmul_coyote,
-        # "rdma_sha3_coyote": rdma_sha3_coyote,
+        "rdma_sha3_coyote": rdma_sha3_coyote,
         # "rdma_rng_coyote": rdma_rng_coyote,
-        # "rdma_gzip_coyote": rdma_gzip_coyote
+        "rdma_gzip_coyote": rdma_gzip_coyote,
     }
 
     Exp_6_1_vfpio_rdma_list = {
-        # "rdma_aes_vfpio": rdma_aes_vfpio,
-        # "rdma_sha256_vfpio": rdma_sha256_vfpio,
+        "rdma_aes_vfpio": rdma_aes_vfpio,
+        "rdma_sha256_vfpio": rdma_sha256_vfpio,
         "rdma_md5_vfpio": rdma_md5_vfpio,
         "rdma_nw_vfpio": rdma_nw_vfpio,
         # "rdma_matmul_vfpio": rdma_matmul_vfpio,
         # "rdma_sha3_vfpio": rdma_sha3_vfpio,
         # "rdma_rng_vfpio": rdma_rng_vfpio,
-        "rdma_gzip_vfpio": rdma_gzip_vfpio,
+        # "rdma_gzip_vfpio": rdma_gzip_vfpio,
     }
 
     Exp_6_3_host_coyote_list = {
@@ -1936,21 +1844,24 @@ def main():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_rdma_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_1_coyote_rdma_list":
         for bench_name, bench_object in Exp_6_1_coyote_rdma_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_rdma_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_1_vfpio_rdma_list":
         for bench_name, bench_object in Exp_6_1_vfpio_rdma_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
-            parse_6_1_output(output_result)
+            output_data = parse_6_1_rdma_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_3_host_coyote_list":
         for bench_name, bench_object in Exp_6_3_host_coyote_list.items():
