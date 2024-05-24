@@ -291,6 +291,8 @@ void Reconfig::reconfigure(void *vaddr, uint32_t len)
 
     Printer(vfid)<<"Reconfiguration completed, addr="<<std::hex<<vaddr<<", len"<<std::dec<<len<<endl;
     Printer(vfid)<< "Reconfig_time " << time/1000 << " ms" << std::endl;
+    Printer(vfid)<< "****************************************************" << endl;
+
 }
 
 /**

@@ -85,12 +85,43 @@ def process_6_2(input_filename, output_filename):
 
     print("write finished")
 
-def process_6_3(input_filename, input_filename_2, output_filename):
+
+def process_6_3_pr(input_filename, output_filename):
+    dic = {}
+    with open(input_filename, "r") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
+            key = row[0]
+            if key not in dic:
+                dic[key] = dict.fromkeys(["host", "hbm"], [])
+                dic[key][row[1]] = list(map(float, row[2:]))
+            else:
+                dic[key][row[1]] += list(map(float, row[2:]))
+
+    # print(dic)
+
+    with open(output_filename, "w") as file:
+        csv_writer = csv.writer(file)
+        csv_writer.writerow(["app", "throughput", "platform"])
+
+        for key in dic:
+            for platform in dic[key]:
+                out = [key, average(dic[key][platform]), platform]
+                csv_writer.writerow(out)
+
+    print("write finished")
+    return dic
+
+
+def process_6_3(input_hbm, input_strm, input_pr, output_filename):
     res = []
     dic_hbm = {}
     dic_strm = {}
+    dic_pr = {}
     app_list = ["aes", "sha256", "md5", "nw", "matmul", "sha3", "rng", "gzip"]
-    with open(input_filename, "r") as file:
+
+    # get hbm performance for both platform
+    with open(input_hbm, "r") as file:
         csv_reader = csv.reader(file)
         for row in csv_reader:
             if not row:
@@ -106,7 +137,8 @@ def process_6_3(input_filename, input_filename_2, output_filename):
 
     # print(dic_hbm)
 
-    with open(input_filename_2, "r") as file:
+    # get streaming performance for both platform
+    with open(input_strm, "r") as file:
         csv_reader = csv.reader(file)
         for row in csv_reader:
             if not row:
@@ -122,9 +154,35 @@ def process_6_3(input_filename, input_filename_2, output_filename):
 
     # print(dic_strm)
 
+    # get pr performance for coyote
+    with open(input_pr, "r") as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            if not row:
+                continue
+            app = row[0]
+            if app not in app_list:
+                continue
+            if app not in dic_pr:
+                dic_pr[app] = dict.fromkeys(["hbm", "host"], [])
+                dic_pr[app][row[2]] = float(row[1])
+            else:
+                dic_pr[app][row[2]] = float(row[1])
+
+    print(dic_pr)
+
     for app in app_list:
-        res.append([app, dic_hbm[app]["vFPIO"], round(dic_hbm[app]["vFPIO"] / dic_hbm[app]["Coyote"] * 100, 1), 
-            dic_strm[app]["vFPIO"], round(dic_strm[app]["vFPIO"] / dic_strm[app]["Coyote"] * 100, 1)])
+        res.append(
+            [
+                app,
+                dic_hbm[app]["vFPIO"],
+                round(dic_hbm[app]["vFPIO"] / dic_hbm[app]["Coyote"] * 100, 1),
+                dic_strm[app]["vFPIO"],
+                round(dic_strm[app]["vFPIO"] / dic_strm[app]["Coyote"] * 100, 1),
+                dic_pr[app]["hbm"],
+                dic_pr[app]["host"],
+            ]
+        )
 
     with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
@@ -235,12 +293,15 @@ def main():
 
     elif exp == "6_3":
         input_file = "e2e.csv"
-        input_file_2 = "results_6_3.csv"
+        input_file_2 = "results_6_3_host.csv"
+        input_file_3 = "results_6_3_pr.csv"
         output_file = "reconfig.csv"
-        output_file_2 = "results_6_3_strm.csv"
+        output_file_2 = "results_6_3_host_2.csv"
+        output_file_3 = "results_6_3_pr_2.csv"
         print("Running 6_3 example.")
         process_6_1(input_file_2, output_file_2)
-        process_6_3(input_file, output_file_2, output_file)
+        process_6_3_pr(input_file_3, output_file_3)
+        process_6_3(input_file, output_file_2, output_file_3, output_file)
         print("exp result path: " + output_file)
 
     elif exp == "6_4_cycle":

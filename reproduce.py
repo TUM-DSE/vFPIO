@@ -68,6 +68,28 @@ def write_to_file(output_filename, data, tags):
     print("write finished")
 
 
+def write_6_3_to_file(output_filename, data, tags, app_list):
+    out = []
+    # remove the teardown command
+    app_list = app_list[:-1]
+    # remove potential duplicate data
+    if len(data) > len(app_list):
+        data = data[1:]
+    print(app_list)
+    print(data)
+    with open(output_filename, "a") as file:
+        csvwriter = csv.writer(file)
+        for i in range(len(app_list)):
+            out = []
+            out.append(app_list[i])
+            out.append(tags[0])
+            out.append(data[i])
+            # out.extend(data)
+
+            csvwriter.writerow(out)
+    print("write finished")
+
+
 def write_6_4_1_to_file(output_filename, data, tags):
     out = []
     with open(output_filename, "a") as file:
@@ -153,13 +175,19 @@ def parse_6_3_pr_output(filename):
                 if "Reconfig_time" in line:
                     # print(line)
                     res_tmp.append(float(line[2]))
-
+    # print("before removing dummy data")
+    # print(res_tmp)
     # remove dummy data
     del res_tmp[1::2]
 
+    # print("useful data")
+    # print(res_tmp)
     for i in range(len(res_tmp) // 2):
-        res.append(res_tmp[i] + res_tmp[i + 1])
-    print(res)
+        # print(str(res_tmp[2*i]) + ", " + str(res_tmp[2*i + 1]))
+        # res.append((res_tmp[i] + res_tmp[i + 1]) / 2)
+        res.append(average([res_tmp[2 * i], res_tmp[2 * i + 1]]))
+    # print("final result")
+    # print(res)
     logging.info(res)
 
     return res
@@ -356,7 +384,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     # process benchmark related data
 
     bench_name = bench_object.name
-    bistream_file = bench_object.bitstream
+    bitstream_file = bench_object.bitstream
     sw_dir = bench_object.sw
     options = bench_object.options
     repeat = bench_object.repeat
@@ -375,18 +403,18 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
     ]
     cmd += options
     print("Running benchmark: " + bench_name)
-    print("bitstream: " + bistream_file)
+    print("bitstream: " + bitstream_file)
     print("cmd: ")
     print(cmd)
 
     logging.info("Running benchmark: " + bench_name)
-    logging.info("bitstream: " + bistream_file)
+    logging.info("bitstream: " + bitstream_file)
     logging.info("cmd: ")
     logging.info(cmd)
     print("output file: " + out_file)
 
     if reprogram:
-        reprogram_fpga(bistream_file)
+        reprogram_fpga(bitstream_file)
 
     print("Running host application.")
 
@@ -404,7 +432,7 @@ def run_benchmark(exp_res_path, bench_object, reprogram):
                         timeout=timeout,
                         check=True,
                     )
-                    
+
                     subprocess.run(
                         cmd_rng_fpga,
                         stdout=subprocess.PIPE,
@@ -457,7 +485,7 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
     # process benchmark related data
 
     bench_name = bench_object.name
-    bistream_file = bench_object.bitstream
+    bitstream_file = bench_object.bitstream
     sw_dir = bench_object.sw
     options = bench_object.options
     sw_2_dir = bench_object.sw_2
@@ -490,28 +518,28 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
     cmd_2 += options_2
 
     print("Running benchmark: " + bench_name)
-    print("bitstream: " + bistream_file)
+    print("bitstream: " + bitstream_file)
     # print("cmd: ")
     # print(cmd)
     # print("cmd_2: ")
     # print(cmd_2)
 
     logging.info("Running benchmark: " + bench_name)
-    logging.info("bistream: " + bistream_file)
+    logging.info("bitstream: " + bitstream_file)
     logging.info("cmd: ")
     logging.info(cmd)
     print("output file: " + server_out_file)
 
     if reprogram:
-        remote_program = Thread(target=reprogram_fpga_remote, args=(bistream_file,))
+        remote_program = Thread(target=reprogram_fpga_remote, args=(bitstream_file,))
         remote_program.start()
 
-        reprogram_fpga(bistream_file)
+        reprogram_fpga(bitstream_file)
         print("Waiting for the thread...")
         remote_program.join()
 
-        # # reprogram_fpga(bistream_file)
-        # reprogram_fpga_remote(bistream_file)
+        # # reprogram_fpga(bitstream_file)
+        # reprogram_fpga_remote(bitstream_file)
     # exit()
     print("Running server application.")
     print(cmd)
@@ -565,7 +593,9 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
 def pr_client(bench_object, out_file):
     sw_2_dir = bench_object.sw_2
     options_2 = bench_object.options_2
-    app_list = bench_object.app_list
+    app_list = bench_object.app_list[:]
+    # somehow the first app is not being recorded in server file
+    app_list.insert(0, app_list[0])
 
     cmd_2 = [
         "sudo",
@@ -598,13 +628,9 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     # process benchmark related data
 
     bench_name = bench_object.name
-    bistream_file = bench_object.bitstream
+    bitstream_file = bench_object.bitstream
     sw_dir = bench_object.sw
     options = bench_object.options
-    sw_2_dir = bench_object.sw_2
-    options_2 = bench_object.options_2
-    repeat = bench_object.repeat
-    app_list = bench_object.app_list
 
     # get timestamp
     now = datetime.now()
@@ -621,24 +647,19 @@ def run_pr_benchmark(exp_res_path, bench_object, reprogram):
     cmd += options
     cmd += [os.path.join(os.path.realpath("."), sw_dir, "main")]
 
-    cmd_2 = [
-        "sudo",
-        os.path.join(os.path.realpath("."), sw_2_dir, "main"),
-    ]
-
     print("Running benchmark: " + bench_name)
-    print("bistream: " + bistream_file)
+    print("bitstream: " + bitstream_file)
     print("cmd: ")
     print(cmd)
 
     logging.info("Running benchmark: " + bench_name)
-    logging.info("bistream: " + bistream_file)
+    logging.info("bitstream: " + bitstream_file)
     logging.info("cmd: ")
     logging.info(cmd)
     print("output file: " + server_out_file)
 
     if reprogram:
-        reprogram_fpga(bistream_file)
+        reprogram_fpga(bitstream_file)
 
     print("Running host application.")
 
@@ -676,7 +697,7 @@ def run_cntx_benchmark(exp_res_path, bench_object, reprogram):
     # process benchmark related data
 
     bench_name = bench_object.name
-    bistream_file = bench_object.bitstream
+    bitstream_file = bench_object.bitstream
     sw_dir = bench_object.sw
     options = bench_object.options
     repeat = bench_object.repeat
@@ -696,18 +717,18 @@ def run_cntx_benchmark(exp_res_path, bench_object, reprogram):
     ]
     cmd += options
     print("Running benchmark: " + bench_name)
-    print("bistream: " + bistream_file)
+    print("bitstream: " + bitstream_file)
     # print("cmd: ")
     # print(cmd)
 
     logging.info("Running benchmark: " + bench_name)
-    logging.info("bistream: " + bistream_file)
+    logging.info("bitstream: " + bitstream_file)
     # logging.info("cmd: ")
     # logging.info(cmd)
     print("output file: " + out_file)
 
     if reprogram:
-        reprogram_fpga(bistream_file)
+        reprogram_fpga(bitstream_file)
 
     print("Running host application.")
 
@@ -1600,6 +1621,7 @@ def main():
         ],
         "build_pr_client_sw",
         app_list=["aes", "nw", "matmul", "sha3", "gzip", "teardown"],
+        tags=["host"],
     )
     pr_part2_host = benchmark(
         "pr_part2_coyote",
@@ -1610,7 +1632,8 @@ def main():
             + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_host")
         ],
         "build_pr_client_sw",
-        app_list=["sha256", "md5", "teardown"],
+        app_list=["sha256", "md5", "rng", "teardown"],
+        tags=["host"],
     )
     # app_list = ["sha256", "md5", "rng", "teardown"])
     pr_part1_hbm = benchmark(
@@ -1623,6 +1646,7 @@ def main():
         ],
         "build_pr_client_sw",
         app_list=["aes", "nw", "matmul", "sha3", "gzip", "teardown"],
+        tags=["hbm"],
     )
     pr_part2_hbm = benchmark(
         "pr_part2_vfpio",
@@ -1633,7 +1657,8 @@ def main():
             + os.path.join(os.path.realpath("."), "bitstreams/caribou3_u280_hbm")
         ],
         "build_pr_client_sw",
-        app_list=["sha256", "md5", "teardown"],
+        app_list=["sha256", "md5", "rng", "teardown"],
+        tags=["hbm"],
     )
     # app_list = ["sha256", "md5", "rng", "teardown"])
 
@@ -1835,12 +1860,12 @@ def main():
         "gzip_host_vfpio": gzip_host_vfpio,
     }
 
-    Exp_6_3_host_list = {
+    Exp_6_3_pr_host_list = {
         "pr_part1_host": pr_part1_host,
         "pr_part2_host": pr_part2_host,
     }
 
-    Exp_6_3_hbm_list = {
+    Exp_6_3_pr_hbm_list = {
         "pr_part1_hbm": pr_part1_hbm,
         "pr_part2_hbm": pr_part2_hbm,
     }
@@ -1933,7 +1958,7 @@ def main():
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             output_data = parse_6_3_output(output_result)
-            write_to_file("results_6_3.csv", output_data, bench_object.tags)
+            write_to_file("results_6_3_host.csv", output_data, bench_object.tags)
 
     elif exp == "Exp_6_3_host_vfpio_list":
         for bench_name, bench_object in Exp_6_3_host_vfpio_list.items():
@@ -1941,23 +1966,33 @@ def main():
             print("--------------------------------------------")
             output_result = run_benchmark(exp_res_path, bench_object, reprogram)
             output_data = parse_6_3_output(output_result)
-            write_to_file("results_6_3.csv", output_data, bench_object.tags)
+            write_to_file("results_6_3_host.csv", output_data, bench_object.tags)
 
-    elif exp == "Exp_6_3_host_list":
-        for bench_name, bench_object in Exp_6_3_host_list.items():
+    elif exp == "Exp_6_3_pr_host_list":
+        for bench_name, bench_object in Exp_6_3_pr_host_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_pr_benchmark(exp_res_path, bench_object, reprogram)
             output_data = parse_6_3_pr_output(output_result)
-            write_to_file("results_6_3.csv", output_data, bench_object.tags)
+            write_6_3_to_file(
+                "results_6_3_pr.csv",
+                output_data,
+                bench_object.tags,
+                bench_object.app_list,
+            )
 
-    elif exp == "Exp_6_3_hbm_list":
-        for bench_name, bench_object in Exp_6_3_hbm_list.items():
+    elif exp == "Exp_6_3_pr_hbm_list":
+        for bench_name, bench_object in Exp_6_3_pr_hbm_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_pr_benchmark(exp_res_path, bench_object, reprogram)
             output_data = parse_6_3_pr_output(output_result)
-            write_to_file("results_6_3.csv", output_data, bench_object.tags)
+            write_6_3_to_file(
+                "results_6_3_pr.csv",
+                output_data,
+                bench_object.tags,
+                bench_object.app_list,
+            )
 
     elif exp == "Exp_6_3_vfpio_list":
         for bench_name, bench_object in Exp_6_3_vfpio_list.items():
