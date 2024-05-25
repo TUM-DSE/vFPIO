@@ -193,7 +193,7 @@ This commands generates `reconfig.csv` which has the data to fill Table 5.
 
 Run the following command to obtain data for Figure 6 and 7. 
 ```
-python3 reproduce.py -r -e Exp_6_4_1_cycles_list 
+python3 reproduce.py -r -e Exp_6_4_1_cycle_list 
 python3 reproduce.py -r -e Exp_6_4_1_cntx_list 
 python3 reproduce.py -r -e Exp_6_4_2_host_list 
 python3 reproduce.py -r -e Exp_6_4_2_fpga_list 
