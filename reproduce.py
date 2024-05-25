@@ -98,7 +98,7 @@ def write_6_4_1_to_file(output_filename, data, tags):
             out.append(tags[0])
             out.extend(data)
             csvwriter.writerow(out)
-        elif tags[0] == "vfpio":
+        elif tags[0] == "vFPIO":
             out_hp = ["HP"]
             out_hp.append(data[2])
             out_lp1 = ["LP-1"]
@@ -1225,7 +1225,10 @@ def main():
     # hls4ml_vfpio = benchmark("aes_vfpio", "cyt_top_aes_io_104", "build_io_app_sw", ["-o", "aes", "-i", "-h"])
 
     # RDMA benchmarks
-
+    # Amy ->
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.1 ./main -w 1 --repst 1 -o aes
+    # Clara ->
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.2 ./main -t 131.159.102.20 -w 1 --repst 1 -o aes
     rdma_aes_host = benchmark(
         "rdma_aes_host",
         "cyt_top_rdma_u280_new_1215",
@@ -1715,13 +1718,13 @@ def main():
 
     Exp_6_1_host_rdma_list = {
         "rdma_aes_host": rdma_aes_host,
-        # "rdma_sha256_host": rdma_sha256_host,
-        # "md5_vfpio": md5_vfpio,
-        # "nw_vfpio": nw_vfpio,
-        # "matmul_vfpio": matmul_vfpio,
-        # "sha3_vfpio": sha3_vfpio,
-        # "rng_vfpio": rng_vfpio,
-        # "gzip_vfpio": gzip_vfpio
+        "rdma_sha256_host": rdma_sha256_host,
+        "rdma_md5_host": rdma_md5_host,
+        "rdma_nw_host": rdma_nw_host,
+        "rdma_matmul_host": rdma_matmul_host,
+        "rdma_sha3_host": rdma_sha3_host,
+        "rdma_rng_host": rdma_rng_host,
+        "rdma_gzip_host": rdma_gzip_host,
     }
 
     Exp_6_1_coyote_rdma_list = {
@@ -1740,10 +1743,10 @@ def main():
         "rdma_sha256_vfpio": rdma_sha256_vfpio,
         "rdma_md5_vfpio": rdma_md5_vfpio,
         "rdma_nw_vfpio": rdma_nw_vfpio,
-        # "rdma_matmul_vfpio": rdma_matmul_vfpio,
-        # "rdma_sha3_vfpio": rdma_sha3_vfpio,
+        "rdma_matmul_vfpio": rdma_matmul_vfpio,
+        "rdma_sha3_vfpio": rdma_sha3_vfpio,
         # "rdma_rng_vfpio": rdma_rng_vfpio,
-        # "rdma_gzip_vfpio": rdma_gzip_vfpio,
+        "rdma_gzip_vfpio": rdma_gzip_vfpio,
     }
 
     Exp_6_3_host_coyote_list = {
