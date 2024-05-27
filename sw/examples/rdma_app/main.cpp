@@ -322,63 +322,63 @@ int main(int argc, char *argv[])
     iqp->ibvSync(mstr);
     // while(sg.type.rdma.len <= max_size) {
 
-        // Measurements ----------------------------------------------------------------------------------
-        if(mstr) {
-            // Inititator 
-	    //
-	    //cproc->netDrop(1, 0, 0);
-	    //cproc->netDrop(0, 1, 0);
-            
-            // ---------------------------------------------------------------
-            // Runs 
-            // ---------------------------------------------------------------
-            cBench bench(n_bench_runs);
-            uint32_t n_runs = 0;
+    // Measurements ----------------------------------------------------------------------------------
+    if(mstr) {
+        // Inititator 
+    //
+    //cproc->netDrop(1, 0, 0);
+    //cproc->netDrop(0, 1, 0);
+        
+        // ---------------------------------------------------------------
+        // Runs 
+        // ---------------------------------------------------------------
+        cBench bench(n_bench_runs);
+        uint32_t n_runs = 0;
 
 #ifdef EN_THR_TESTS    
-            auto benchmark_thr = [&]() {
-                bool k = false;
-                n_runs++;
-                
-                // Initiate
-                for(int i = 0; i < n_reps_thr; i++) {
-                    iqp->ibvPostSend(&wr);
-                }
-
-                // Wait for completion
-                while(iqp->ibvDone() < n_reps_thr * n_runs) { 
-                    if( stalled.load() ) throw std::runtime_error("Stalled, SIGINT caught");  
-                    // std::cout << iqp->ibvDone() << std::endl;
-                }
-            };
-            std::cout << "in master" << std::endl;
-            bench.runtime(benchmark_thr);
-            std::cout << std::fixed << std::setprecision(2);
-            std::cout << std::setw(8) << app_bytes << " [bytes], throughput: " 
-                      << std::setw(8) << ((1 + oper) * ((1000 * app_bytes))) / ((bench.getAvg()) / n_reps_thr) << " [MB/s], latency: "
-                      << ((bench.getAvg()) / n_reps_thr / 1000) << "us"; 
-
-            std::cout << std::endl << std::endl << "ACKs: " << cproc->ibvCheckAcks() << std::endl;
-#endif
+        auto benchmark_thr = [&]() {
+            bool k = false;
+            n_runs++;
             
-            // Reset
-            // iqp->ibvClear();
-            // n_runs = 0;
-            // //std::cout << "\e[1mSyncing ...\e[0m" << std::endl;
-            // iqp->ibvSync(mstr);
+            // Initiate
+            for(int i = 0; i < n_reps_thr; i++) {
+                iqp->ibvPostSend(&wr);
+            }
+
+            // Wait for completion
+            while(iqp->ibvDone() < n_reps_thr * n_runs) { 
+                if( stalled.load() ) throw std::runtime_error("Stalled, SIGINT caught");  
+                // std::cout << iqp->ibvDone() << std::endl;
+            }
+        };
+        std::cout << "in master" << std::endl;
+        bench.runtime(benchmark_thr);
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << std::setw(8) << app_bytes << " [bytes], throughput: " 
+                    << std::setw(8) << ((1 + oper) * ((1000 * app_bytes))) / ((bench.getAvg()) / n_reps_thr) << " [MB/s], latency: "
+                    << ((bench.getAvg()) / n_reps_thr / 1000) << "us"; 
+
+        std::cout << std::endl << std::endl << "ACKs: " << cproc->ibvCheckAcks() << std::endl;
+#endif
+        
+        // Reset
+        // iqp->ibvClear();
+        // n_runs = 0;
+        // //std::cout << "\e[1mSyncing ...\e[0m" << std::endl;
+        // iqp->ibvSync(mstr);
 
 #ifdef EN_LAT_TESTS           
-            auto benchmark_lat = [&]() {
-                n_runs++;
-                
-                // Initiate and wait for completion
-                for(int i = 0; i < n_reps_lat; i++) {
-                    // std::cout << "n_reps_lat: " << i << std::endl;
-                    iqp->ibvPostSend(&wr);
-                    while(iqp->ibvDone() < (i+1) + ((n_runs-1) * n_reps_lat)) { if( stalled.load() ) throw std::runtime_error("Stalled, SIGINT caught");  }
-                }
-            };
-            bench.runtime(benchmark_lat);
+        auto benchmark_lat = [&]() {
+            n_runs++;
+            
+            // Initiate and wait for completion
+            for(int i = 0; i < n_reps_lat; i++) {
+                // std::cout << "n_reps_lat: " << i << std::endl;
+                iqp->ibvPostSend(&wr);
+                while(iqp->ibvDone() < (i+1) + ((n_runs-1) * n_reps_lat)) { if( stalled.load() ) throw std::runtime_error("Stalled, SIGINT caught");  }
+            }
+        };
+        bench.runtime(benchmark_lat);
 	    std::cout << (bench.getAvg()) / (n_reps_lat * (1 + oper)) << " [ns]" << std::endl;
 #endif	    
 

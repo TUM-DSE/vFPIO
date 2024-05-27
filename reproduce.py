@@ -463,7 +463,7 @@ def rdma_client(cmd, out_file):
 
     # print("rdma_client: ")
     # print(cmd)
-    with open(out_file, "w+") as f:
+    with open(out_file, "a") as f:
         try:
             client_process = subprocess.run(
                 cmd,
@@ -547,45 +547,48 @@ def run_rdma_benchmark(exp_res_path, bench_object, reprogram):
     print(cmd_2)
 
     with open(server_out_file, "w+") as fs:
-        with open(client_out_file, "w+") as fc:
+        # with open(client_out_file, "w+") as fc:
 
-            for i in range(repeat):
-                print(i)
-                try:
-                    server_process = subprocess.Popen(
-                        cmd,
-                        stdout=fs,
-                        stderr=fs,
-                        # stdout = subprocess.PIPE,
-                        # stderr = subprocess.PIPE,
-                        text=True,
-                    )
+        for i in range(repeat):
+            print(i)
+            try:
+                server_process = subprocess.Popen(
+                    cmd,
+                    stdout=fs,
+                    stderr=fs,
+                    # stdout = subprocess.PIPE,
+                    # stderr = subprocess.PIPE,
+                    text=True,
+                )
 
-                    # client_process = subprocess.run(
-                    #     cmd_2,
-                    #     stdout=fc,
-                    #     stderr=fc,
-                    #     env=os.environ,
-                    #     timeout = 10,
-                    #     text = True,
-                    #     # check=True,
-                    # )
-                    thread = Thread(target=rdma_client, args=(cmd_2, client_out_file))
+                # client_process = subprocess.run(
+                #     cmd_2,
+                #     stdout=fc,
+                #     stderr=fc,
+                #     env=os.environ,
+                #     timeout = 10,
+                #     text = True,
+                #     # check=True,
+                # )
+                thread = Thread(target=rdma_client, args=(cmd_2, client_out_file))
 
-                    thread.start()
+                thread.start()
 
-                    # print('Waiting for the thread...')
-                    thread.join(timeout=10)
+                # print('Waiting for the thread...')
+                thread.join(timeout=10)
 
-                    output, errors = server_process.communicate()
+                output, errors = server_process.communicate()
 
-                    # print("about to kill")
-                    server_process.kill()
-                    time.sleep(1)
-                except:
-                    server_process.kill()
+                # print("about to kill")
+                server_process.kill()
+                time.sleep(1)
+            except:
+                server_process.kill()
 
-    return server_out_file
+    if "rng" in bench_name and "host" not in bench_name:
+        return client_out_file
+    else:
+        return server_out_file
 
 
 def pr_client(bench_object, out_file):
@@ -1299,9 +1302,9 @@ def main():
         "rdma_rng_host",
         "cyt_top_rdma_bram_strm_112",
         "build_rdma_rng_host_sw",
-        ["-w", "1", "--repst", "1", "-o", "rng"],
-        "build_rdma_app_sw",
-        ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
+        ["-w", "1"],
+        "build_rdma_rng_host_sw",
+        ["-t", "131.159.102.20", "-w", "1"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
         tags=[" rng ", "Host"],
@@ -1473,24 +1476,26 @@ def main():
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
         tags=[" sha3 ", "vFPIO"],
     )
-
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.1 ./main -w 1 --repst 1 -o rng
+    # sudo FPGA_0_IP_ADDRESS=10.0.0.2 ./main -t 131.159.102.20 -w 1 --repst 1 -o rng
     rdma_rng_coyote = benchmark(
         "rdma_rng_coyote",
         "cyt_top_rdma_rng_strm_116",
-        "build_rdma_app_sw",
+        "build_rdma_rng_fpga_sw",
         ["-w", "1", "--repst", "1", "-o", "rng"],
-        "build_rdma_app_sw",
+        "build_rdma_rng_fpga_sw",
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
+        # repeat=1,
         tags=[" rng ", "Coyote"],
     )
     rdma_rng_vfpio = benchmark(
         "rdma_rng_vfpio",
         "cyt_top_rdma_rng_io_116",
-        "build_rdma_app_sw",
+        "build_rdma_rng_fpga_sw",
         ["-w", "1", "--repst", "1", "-o", "rng", "-i"],
-        "build_rdma_app_sw",
+        "build_rdma_rng_fpga_sw",
         ["-t", "131.159.102.20", "-w", "1", "--repst", "1", "-o", "rng", "-i"],
         prefix_1=["FPGA_0_IP_ADDRESS=10.0.0.1"],
         prefix_2=["FPGA_0_IP_ADDRESS=10.0.0.2"],
@@ -1734,7 +1739,7 @@ def main():
         "rdma_nw_coyote": rdma_nw_coyote,
         "rdma_matmul_coyote": rdma_matmul_coyote,
         "rdma_sha3_coyote": rdma_sha3_coyote,
-        # "rdma_rng_coyote": rdma_rng_coyote,
+        "rdma_rng_coyote": rdma_rng_coyote,
         "rdma_gzip_coyote": rdma_gzip_coyote,
     }
 
@@ -1745,7 +1750,7 @@ def main():
         "rdma_nw_vfpio": rdma_nw_vfpio,
         "rdma_matmul_vfpio": rdma_matmul_vfpio,
         "rdma_sha3_vfpio": rdma_sha3_vfpio,
-        # "rdma_rng_vfpio": rdma_rng_vfpio,
+        "rdma_rng_vfpio": rdma_rng_vfpio,
         "rdma_gzip_vfpio": rdma_gzip_vfpio,
     }
 
@@ -1860,6 +1865,14 @@ def main():
 
     elif exp == "Exp_6_1_vfpio_rdma_list":
         for bench_name, bench_object in Exp_6_1_vfpio_rdma_list.items():
+            # print(bench_object.name)
+            print("--------------------------------------------")
+            output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
+            output_data = parse_6_1_rdma_output(output_result)
+            write_to_file("results_6_1.csv", output_data, bench_object.tags)
+
+    elif exp == "Exp_6_1_rdma_rng_list":
+        for bench_name, bench_object in Exp_6_1_rdma_rng_list.items():
             # print(bench_object.name)
             print("--------------------------------------------")
             output_result = run_rdma_benchmark(exp_res_path, bench_object, reprogram)
