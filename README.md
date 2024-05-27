@@ -21,6 +21,8 @@ SSH_AUTH_SOCK= ssh -v -F /dev/null -i <path/to/privkey> -oProxyCommand="ssh tunn
 - replace the <path/to/privkey> with the path to your private key file
 ```
 
+FPGA related experiments (6.1, 6.3, 6.4) requires exclusive access to the FPGAs. Please make sure there are not other reviewers testing at the same time. 
+
 If you run into problems you can write an email or join channel #vfpio on freenode for live chat (https://webchat.freenode.net/) for further questions.
 
 
@@ -75,12 +77,12 @@ cmake ../sw/ -DTARGET_DIR=examples/io_app
 make
 ```
 
-
+<!-- 
 Set up hugepages for host application.
 
 ```
 sudo sysctl -w vm.nr_hugepages=1024
-```
+``` -->
 
 ### Running test example
 
@@ -135,6 +137,8 @@ This will take 3-4 hours to complete. To save time, you can
 
 
 ### Running experiments
+
+Running FPGA related experiments require exclusive access to FPGA. Please check if there are other reviewers logged into the system at the same time to avoid potential issues. 
 
 
 #### 6.1 Performance
@@ -240,6 +244,8 @@ python3 reproduce.py -e Exp_6_5_resource_util
 ### Program stuck or reports errors
 The `reproduce.py` will generate log file (log with timestamp, e.g., `log_05_24_13_55.log`) and program specific output in `exp-results` folder. You can see what went wrong by checking the log files.
 
+### Something is wrong with the host application. Please reprogram the FPGA.
+When this error happens, it is better to check the client log to see the exact cause. It can be there's something wrong with the client machine driver or the application failed to start due to library issues. Or maybe another reviewer is testing at the same time.
 
 
 ### Driver issue
