@@ -242,7 +242,13 @@ python3 reproduce.py -e Exp_6_5_resource_util
 ## Potential issues
 
 ### Program stuck or reports errors
-The `reproduce.py` will generate log file (log with timestamp, e.g., `log_05_24_13_55.log`) and program specific output in `exp-results` folder. You can see what went wrong by checking the log files.
+The `reproduce.py` will generate FPGA programming log file (log with timestamp, e.g., `log_05_24_13_55.log`) and program specific output in `exp-results` folder. You can see what went wrong by checking the log files.
+
+
+### Error: device 0000:e1:00.0 not found
+
+This is usually shown in the FPGA programming log file (`log_05_**_**_**.log`) and indicates there is something wrong with installing the driver. On the application side it will show `what():  cProcess could not be obtained, vfid: 0`. `sudo reboot` should always fix this issue. 
+
 
 ### Something is wrong with the host application. Please reprogram the FPGA.
 When this error happens, it is better to check the client log to see the exact cause. It can be there's something wrong with the client machine driver or the application failed to start due to library issues. Or maybe another reviewer is testing at the same time.
