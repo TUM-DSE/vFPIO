@@ -826,7 +826,7 @@ def extract_util(coyote_path, vfpio_path):
                 cdma_entry[1] += float(line[3])
                 cdma_entry[3] += float(line[7])
                 cdma_entry[5] += float(line[8]) + float(line[9]) / 2
-            elif line[0] == "inst_tlb_top":
+            elif line[1] == "inst_tlb_top":
                 entry = ["MMU"]
                 entry = get_data(total, entry, line)
                 result_table.append(entry)

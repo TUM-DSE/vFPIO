@@ -267,6 +267,15 @@ Sometimes after reboot, there will only be system folders and no user files. Kee
 This will happen when the script does not exit normally. Type `reset` to solve the issue.
 
 
+### sudo: \*/build_\*_sw/main: command not found
+
+This error means the software binary cannot be found. Please recompile the software by either running `make` in the respective `build_*_sw` folder or run `bash compile_sw.sh` in the project repo root.
+
+
+### sudo: The "no new privileges" flag is set, which prevents sudo from running as root.
+
+Something is wrong with the previleges. Please make sure you have run `nix-shell vfpio.nix`. Please contact the author if this does not solve the issue.
+
 <!-- ### Require IP 'll_compress_2'
 
 
