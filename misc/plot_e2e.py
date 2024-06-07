@@ -1,7 +1,10 @@
 import seaborn as sns
 import pandas
+import matplotlib
 import matplotlib.pyplot as plt
 
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 sns.set(font_scale=2)
 sns.set_style("ticks")
 # sns.set_theme(style="whitegrid")
@@ -26,16 +29,21 @@ palette_console = [color2, color1, color3]
 # palette_console = [color2, color1, color3, palette[3], palette[4], palette[5], palette[6]]
 
 g = sns.catplot(
-    data=data, kind="bar",
-    x="app", y="throughput", hue="platform",
-    errorbar="sd", palette=palette_console, alpha=.8,
-    edgecolor='black',
+    data=data,
+    kind="bar",
+    x="app",
+    y="throughput",
+    hue="platform",
+    errorbar="sd",
+    palette=palette_console,
+    alpha=0.8,
+    edgecolor="black",
     linewidth=1,
-    aspect=3.8, 
-    # aspect=1.2, 
+    aspect=3.8,
+    # aspect=1.2,
     width=0.5,
     # height=5,
-    legend=True
+    legend=True,
 )
 
 # add pattern
@@ -47,11 +55,13 @@ for bars, hatch in zip(g.ax.containers, hatch_list):
 ax = g.facet_axis(0, 0)
 # ax.set_ylim(top=3)
 
+
 def get_num(num):
     if num >= 10:
         return int(num)
     else:
         return "{:.2f}".format(num)
+
 
 ax.legend()
 
@@ -73,67 +83,76 @@ ax.annotate(
     xycoords="axes points",
     xy=(600, 242),
     # xytext=xytext,
-    #xytext=(-100, -27),
+    # xytext=(-100, -27),
     # fontsize=FONT_SIZE,
     color="navy",
     weight="bold",
 )
 
-g.despine(right=False, top=False, offset={'top':1.5})
+g.despine(right=False, top=False, offset={"top": 1.5})
 # g.tight_layout()
 g.set_axis_labels("", "Throughput [MiB/s]")
 # g.legend.set_title("Platform")
 
 
 def add_line(ax, xpos, ypos):
-    line = plt.Line2D([xpos, xpos], [ypos+0.1, ypos], transform=ax.transAxes, color='black')
+    line = plt.Line2D(
+        [xpos, xpos], [ypos + 0.1, ypos], transform=ax.transAxes, color="black"
+    )
     line.set_clip_on(False)
     ax.add_line(line)
 
-add_line(ax, 0, -.1)
-add_line(ax, 0, -.2)
-add_line(ax, 0, -.3)
+
+add_line(ax, 0, -0.1)
+add_line(ax, 0, -0.2)
+add_line(ax, 0, -0.3)
 # add_line(ax, 0, -.4)
 
-add_line(ax, 8/16, -.1)
-add_line(ax, 8/16, -.2)
-add_line(ax, 8/16, -.3)
+add_line(ax, 8 / 16, -0.1)
+add_line(ax, 8 / 16, -0.2)
+add_line(ax, 8 / 16, -0.3)
 # add_line(ax, 8/16, -.4)
 
 
-add_line(ax, 1, -.1)
-add_line(ax, 1, -.2)
-add_line(ax, 1, -.3)
+add_line(ax, 1, -0.1)
+add_line(ax, 1, -0.2)
+add_line(ax, 1, -0.3)
 # add_line(ax, 1, -.4)
 
-ax.annotate('Memory benchmarks',
-            xycoords="figure points",
-            xy=(450, 18),
-            # xytext=(-10, 90), 
-            # textcoords='offset points',
-            horizontalalignment='center', verticalalignment='bottom')
+ax.annotate(
+    "Memory benchmarks",
+    xycoords="figure points",
+    xy=(450, 18),
+    # xytext=(-10, 90),
+    # textcoords='offset points',
+    horizontalalignment="center",
+    verticalalignment="bottom",
+)
 # plt.text(-0.4, -0.6, "Vitis Accel examples")
 
-ax.annotate('RDMA benchmarks',
-            xycoords="figure points",
-            xy=(1200, 18),
-            # xytext=(-10, 90), 
-            # textcoords='offset points',
-            horizontalalignment='center', verticalalignment='bottom')
+ax.annotate(
+    "RDMA benchmarks",
+    xycoords="figure points",
+    xy=(1200, 18),
+    # xytext=(-10, 90),
+    # textcoords='offset points',
+    horizontalalignment="center",
+    verticalalignment="bottom",
+)
 
 
 # ax.legend()
 g.legend.remove()
-plt.legend(loc='lower left')
+plt.legend(loc="lower left")
 
-ax.patch.set_edgecolor('black') 
+ax.patch.set_edgecolor("black")
 plt.tight_layout()
-plt.yscale('log')
-# plt.xticks(rotation=15) 
+plt.yscale("log")
+# plt.xticks(rotation=15)
 plt.ylim(top=2000)
 # sns.move_legend(g, "lower left", bbox_to_anchor=(.55, .45), title='Platform')
 # g.fig.subplots_adjust(top=0.92, wspace = 0.1)
 
 # g.fig.suptitle('Isolation overhead')
-g.savefig("e2e.png", bbox_inches='tight')
-g.savefig("e2e.pdf", bbox_inches='tight')
+g.savefig("e2e.png", bbox_inches="tight")
+g.savefig("e2e.pdf", bbox_inches="tight")

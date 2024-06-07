@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+import math
 import argparse
 
 
@@ -14,29 +15,38 @@ def percentage(a, b):
     return round((a - b) / a * 100, 1)
 
 
+def std_var_per(lst):
+    mean = sum(lst) / len(lst)
+    variance = sum((x - mean) ** 2 for x in lst) / len(lst)
+    std_var = math.sqrt(variance)
+    per = std_var / mean
+    print("mean: " + str(mean) + ", std_var: " + str(std_var) + ", per: " + str(per))
+    return per * 100
+
+
 def process_6_1(input_filename, output_filename):
     dic = {}
     dic_rdma = {}
     with open(input_filename, "r") as file:
         csv_reader = csv.reader(file, delimiter=",")
         for row in csv_reader:
-            if "rdma" not in row[1]:
-                key = row[0]
-                if key not in dic:
-                    dic[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
-                    dic[key][row[1]] = list(map(float, row[2:]))
-                else:
-                    dic[key][row[1]] += list(map(float, row[2:]))
+            key = row[0]
+            if key not in dic:
+                dic[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
+                dic[key][row[1]] = list(map(float, row[2:]))
             else:
-                tag = row[1].split("_")[1]
-                key = " " + row[0] + " "
-                if key not in dic_rdma:
-                    dic_rdma[key] = dict.fromkeys(["Host", "Coyote", "vFPIO"], [])
-                    dic_rdma[key][tag] = list(map(float, row[2:]))
-                else:
-                    dic_rdma[key][tag] += list(map(float, row[2:]))
+                dic[key][row[1]] += list(map(float, row[2:]))
+
     # print(dic)
-    # print(dic_rdma)
+    std_var_per_list = []
+    for key in dic:
+        for platform in dic[key]:
+            print("key: " + str(key) + ", platform: " + str(platform))
+            std_var_per_list.append(std_var_per(dic[key][platform]))
+
+    print("average standard variance percentage to mean")
+    print(average(std_var_per_list))
+
     with open(output_filename, "w") as file:
         csv_writer = csv.writer(file)
         csv_writer.writerow(["app", "throughput", "platform"])
@@ -44,11 +54,6 @@ def process_6_1(input_filename, output_filename):
         for key in dic:
             for platform in dic[key]:
                 out = [key, average(dic[key][platform]), platform]
-                csv_writer.writerow(out)
-
-        for key in dic_rdma:
-            for platform in dic_rdma[key]:
-                out = [key, average(dic_rdma[key][platform]), platform]
                 csv_writer.writerow(out)
 
     print("write finished")

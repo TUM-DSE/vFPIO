@@ -8,7 +8,13 @@ echo "$PWD"
 sudo rmmod coyote_drv
 sudo bash sw/util/hot_reset.sh "e1:00.0"
 
-xilinx-shell ./run_vivado.sh $1
+vivado_binary="vivado"
+if command -v "$binary_name" &> /dev/null; then
+  ./run_vivado.sh $1
+else
+  xilinx-shell ./run_vivado.sh $1
+fi
+
 #echo "test"
 sudo bash sw/util/hot_reset.sh "e1:00.0"
 #sudo insmod driver/coyote_drv.ko

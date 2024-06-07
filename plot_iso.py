@@ -1,10 +1,12 @@
 import seaborn as sns
 import pandas
-import matplotlib as mpl  # type: ignore
+import matplotlib  # type: ignore
 import matplotlib.pyplot as plt
 from typing import Any, Dict, List, Union
 
-FORMATTER: Dict[str, mpl.ticker.Formatter] = {}
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
+FORMATTER: Dict[str, matplotlib.ticker.Formatter] = {}
 COLUMN_ALIASES: Dict[str, str] = {}
 
 FONTSIZE = 14
