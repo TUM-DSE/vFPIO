@@ -4,8 +4,8 @@
 
 # Host code
 echo "Host application"
-scc  sw/vfpio_host_app_template/main.cpp
 scc  sw/coyote_host_app_template/main.cpp
+scc  sw/vfpio_host_app_template/main.cpp
 ###############################################################
 
 # FPGA code: cyt_examples is for coyote style applications, vfpio otherwise

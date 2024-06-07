@@ -1,7 +1,10 @@
 import seaborn as sns
 import pandas
+import matplotlib
 import matplotlib.pyplot as plt
 
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 sns.set(font_scale=2)
 sns.set_style("ticks")
 # sns.set_theme(style="whitegrid")
@@ -137,3 +140,5 @@ plt.ylim(top=2000)
 # g.fig.suptitle('Isolation overhead')
 g.savefig("e2e.png", bbox_inches='tight')
 g.savefig("e2e.pdf", bbox_inches='tight')
+
+print("Output: e2e.png, e2e.pdf")
